@@ -31,7 +31,7 @@ body{margin:0;display:flex;flex-direction:column;font-family:"M PLUS Rounded 1c"
 button{font-family:inherit;cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s}
 button:active{transform:translateY(2px)}
 header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);box-shadow:0 1px 0 var(--line)}
-header h1{font-size:19px;font-weight:800;margin:0 auto 0 0;color:var(--pri);letter-spacing:.04em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+header h1{font-size:19px;font-weight:800;margin:0 auto 0 0;color:var(--pri);letter-spacing:.04em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;cursor:default}
 .ib{width:42px;height:42px;border:0;border-radius:50%;background:var(--pri2);font-size:19px}
 #adminbar{display:none;gap:6px;padding:4px 14px;background:#ffe9e9;font-size:13px;align-items:center;flex-wrap:wrap}
 #adminbar button{border:0;border-radius:20px;padding:4px 12px;font-weight:700;background:#fff}
@@ -249,8 +249,9 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
   <div class="mrow">
     <button onclick="adminUnlock()">全レベルを ひらく</button>
     <button onclick="adminReset()">しんちょくを リセット</button>
-    <button onclick="openMenu()">レベル選択へ</button>
+    <button onclick="openHome()">🏠 トップへ</button>
   </div>
+  <p id="admmsg" style="font-size:20px;font-weight:800;color:var(--pri);min-height:1.5em"></p>
   <p id="adstat"></p>
 </div>
 
@@ -736,8 +737,8 @@ function freeOp(){const o=$("fop").value,d=o==="div";
 function openFree(){$("ferr").textContent="";$("fop").value=menuG;freeOp();show("free")}
 
 // 管理者用：全レベルをひらく／進み具合をリセットする(子どもの端末で試したあとは、リセットでもとにもどす)
-function adminUnlock(){adminOn=true;for(const g in UL)UL[g]=GMAX(g);saveU();$("adminbar").style.display="flex";show("admin")}
-function adminReset(){for(const g in UL)UL[g]=0;adminOn=false;saveU();$("adminbar").style.display="none";show("admin")}
+function adminUnlock(){adminOn=true;for(const g in UL)UL[g]=GMAX(g);saveU();$("adminbar").style.display="flex";show("admin");$("admmsg").textContent="✅ 全レベルを ひらきました。「トップへ」から えらべます。"}
+function adminReset(){for(const g in UL)UL[g]=0;adminOn=false;saveU();$("adminbar").style.display="none";show("admin");$("admmsg").textContent="🔄 しんちょくを リセットしました。"}
 
 // 管理者用：いまの問題を正解あつかいでとばす／10問ぜんぶ正解あつかいにして合格させる
 function adminSkip(){if(!rd||rd.free||demoOn||!pl)return;busy=false;hideYay();rd.res.push(true);dots();nextP()}
@@ -1301,7 +1302,10 @@ function up(e){
  suppress=true;setTimeout(()=>{suppress=false},0);
  d.f.remove();if(ghostEl)ghostEl.classList.remove("hot");
  if(e.type!=="pointerup")return;
- if(over(e.clientX,e.clientY))submit(d.kind,d.val);
+ // 1けたずつの□や小さい○の上で はなしたら、その□(○)に入れる(いま光っていない□でもOK)
+ const hitS=d.kind==="card"&&document.elementsFromPoint(e.clientX,e.clientY).find(x=>x.dataset&&x.dataset.s!==undefined);
+ if(hitS){foc=+hitS.dataset.s;submit(d.kind,d.val)}
+ else if(over(e.clientX,e.clientY))submit(d.kind,d.val);
  else note("□ の ところで ゆびを はなそう");
 }
 
@@ -1341,12 +1345,18 @@ function rubyAll(){
 let rbq=false;
 new MutationObserver(()=>{if(rbq)return;rbq=true;requestAnimationFrame(()=>{rbq=false;rubyAll()})}).observe(document.body,{childList:true,subtree:true,characterData:true});
 
-/* ---------- 先生用：タイトルを 3びょう 長おしで 管理者ページ ---------- */
+/* ---------- 先生用：タイトルを 3びょう 長おし(または すばやく 5回 タップ)で 管理者ページ ---------- */
+// iPad(Safari)では、長おし中に ブラウザが タッチを とりあげて 止まることが あるので、
+// タッチの 動きを 止める設定(touch-action:none)と、「すばやく 5回 タップ」でも ひらける 予備の 方法を 用意している。
 (()=>{
- const t=document.querySelector("header h1");let tm=null;
+ const t=document.querySelector("header h1");let tm=null,sx=0,sy=0,taps=[];
+ const open=()=>{tm=null;taps=[];if(navigator.vibrate)navigator.vibrate(60);$("admmsg").textContent="";show("admin")};
  const stop=()=>{clearTimeout(tm);tm=null};
- t.addEventListener("pointerdown",()=>{stop();tm=setTimeout(()=>{tm=null;if(navigator.vibrate)navigator.vibrate(60);show("admin")},3000)});
- ["pointerup","pointerleave","pointercancel"].forEach(ev=>t.addEventListener(ev,stop));
+ t.addEventListener("pointerdown",e=>{stop();sx=e.clientX;sy=e.clientY;tm=setTimeout(open,3000)});
+ t.addEventListener("pointermove",e=>{if(tm&&Math.hypot(e.clientX-sx,e.clientY-sy)>30)stop()});
+ ["pointerup","pointercancel"].forEach(ev=>t.addEventListener(ev,stop));
+ t.addEventListener("touchstart",e=>{if(e.cancelable)e.preventDefault()},{passive:false});
+ t.addEventListener("pointerup",()=>{const n=Date.now();taps=taps.filter(x=>n-x<2500);taps.push(n);if(taps.length>=5)open()});
  t.addEventListener("contextmenu",e=>e.preventDefault());
 })();
 
