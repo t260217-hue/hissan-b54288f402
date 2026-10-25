@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<!--
+  ひっさん れんしゅう(わり算・かけ算)
+  ・小学3〜5年の筆算を、手順(じゅんび→たてる→かける→ひく→おろす／かける→たす→しあげ)にそって1ステップずつ練習するアプリ。
+  ・1つのHTMLファイルだけで動く(外部から読むのはフォントのみ。ネットがなくても標準フォントで動く)。
+  ・子どもの答えや名前などは外へ送らない。合格状況などは、その端末のブラウザ(localStorage)にだけ保存する。
+  ・先生用：画面左上のタイトルを3秒長押しすると管理者ページが開く。
+  ファイルの構成：見た目(style) → 画面の部品(body内のHTML) → 動き(script)
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 検索エンジンに載せない設定(GitHub Pages で公開するとき用)。リンクを知っている人は開ける -->
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>ひっさん れんしゅう</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+<!-- ===== 見た目(CSS) ===== 色は :root の変数でまとめて管理。緑を基調に、入力先はオレンジ、注目はうすい黄色。 -->
+<style>
+:root{
+ --bg:#eef6f1;--card:#fff;--ink:#1e3a2f;--sub:#6a8478;--line:#d6e8dd;
+ --pri:#1e9e6a;--pri2:#e1f4ea;--pri3:#157a51;--pri4:#bfe6d0;--acc:#f2a33a;--acc2:#fff6e6;--hl:#fff0a6;--ok:#5cc98f;--ng:#f2c14e;
+ --r:18px;--sh:0 2px 0 #d3e6da,0 6px 16px rgba(30,58,47,.06);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;display:flex;flex-direction:column;font-family:"M PLUS Rounded 1c","UD デジタル 教科書体",sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;cursor:pointer;transition:transform .08s,box-shadow .08s,background .15s}
+button:active{transform:translateY(2px)}
+header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--card);box-shadow:0 1px 0 var(--line)}
+header h1{font-size:19px;font-weight:800;margin:0 auto 0 0;color:var(--pri);letter-spacing:.04em;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.ib{width:42px;height:42px;border:0;border-radius:50%;background:var(--pri2);font-size:19px}
+#adminbar{display:none;gap:6px;padding:4px 14px;background:#ffe9e9;font-size:13px;align-items:center;flex-wrap:wrap}
+#adminbar button{border:0;border-radius:20px;padding:4px 12px;font-weight:700;background:#fff}
+#lvbar{display:flex;align-items:center;gap:10px;padding:8px 16px 0;font-weight:700;font-size:14px;color:var(--sub);flex-wrap:wrap}
+#dots{display:flex;gap:5px}
+#dots i{display:block;width:22px;height:8px;border-radius:4px;background:var(--line)}
+#dots i.ok{background:var(--ok)}#dots i.ng{background:var(--ng)}#dots i.cur{background:var(--pri)}
+#top{display:flex;align-items:center;gap:14px;padding:6px 16px;flex-wrap:wrap}
+#expr{font-size:30px;font-weight:800;display:flex;gap:10px;align-items:center;background:var(--card);padding:6px 16px;border-radius:var(--r);box-shadow:var(--sh)}
+.tok{padding:0 12px;border-radius:12px;background:var(--pri2);color:var(--pri);touch-action:none;user-select:none;-webkit-user-select:none}
+.tok.live{background:var(--acc);color:#fff;box-shadow:0 3px 0 #cf8418;animation:nudge 1.2s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateY(-3px)}}
+.steps{display:flex;gap:0;background:var(--card);border-radius:30px;padding:4px;box-shadow:var(--sh)}
+.step{padding:5px 12px;border-radius:30px;font-size:13px;font-weight:700;color:var(--sub)}
+.step.active{background:var(--pri);color:#fff}
+#stage{flex:1;min-height:0;display:grid;grid-template-columns:minmax(230px,28%) 1fr;gap:10px;padding:4px 14px 10px}
+@media (max-width:720px){#stage{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+#side{overflow:auto}
+#bubble{position:relative;background:var(--card);border-radius:var(--r);padding:14px 14px 12px;font-size:17px;font-weight:700;line-height:1.55;box-shadow:var(--sh);border-left:6px solid var(--pri)}
+#bdemo{display:none;color:var(--pri);font-size:13px;margin-bottom:4px}
+#bhint{display:none;font-weight:500;font-size:15px;color:#8a5a12;background:#fff6e0;border-radius:12px;padding:8px 10px;margin-top:8px}
+#bubble button{margin:8px 6px 0 0;border:0;border-radius:30px;background:#fff6e0;padding:9px 16px;font-size:15px;font-weight:700;color:#8a5a12;box-shadow:0 2px 0 #f0ddb0}
+#nextBtn,#skipBtn,#mulBtn{display:none}
+#nextBtn{background:var(--pri)!important;color:#fff!important;box-shadow:0 3px 0 var(--pri3)!important}
+#mulBtn{background:var(--pri2)!important;color:var(--pri)!important;box-shadow:0 2px 0 var(--pri4)!important}
+#skipBtn{background:#f0f3f7!important;color:var(--sub)!important;box-shadow:none!important}
+#choices{display:flex;gap:8px;flex-wrap:wrap}
+#choices button{background:var(--pri2);color:var(--pri);font-size:21px;padding:12px 22px;box-shadow:0 3px 0 var(--pri4)}
+#choices button.pick{background:var(--pri);color:#fff}
+#board{position:relative;min-height:0;background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:6px}
+svg{width:100%;height:100%;display:block;touch-action:none}
+#stage,#top,#cards,#done{user-select:none;-webkit-user-select:none}
+#board{display:flex;flex-direction:column;align-items:center}
+#board svg{flex:1;height:auto;min-height:0}
+#board #expr{margin-top:8px;box-shadow:none;background:var(--bg)}
+.num{font-family:"M PLUS Rounded 1c",sans-serif;font-size:44px;font-weight:800;text-anchor:middle;dominant-baseline:central;fill:var(--ink)}
+.num.w{fill:var(--pri)}.num.ext{fill:#b7cbbf}.num.gy{fill:#93a99c}.num.tr{fill:var(--acc)}
+.hl{fill:var(--hl);opacity:.75}
+.num.cyc{font-size:19px;fill:#d9891c}
+.hq{fill:#ffc9a8}
+.ghost{fill:var(--acc2);stroke:var(--acc);stroke-width:3.5;stroke-dasharray:7 6}
+.ghost.hot{fill:#ffe9c4;stroke-dasharray:none}
+#cards{display:flex;gap:6px;padding:10px 12px 14px;background:var(--card);box-shadow:0 -1px 0 var(--line);justify-content:center}
+.card{flex:1;min-width:0;max-width:68px;height:clamp(50px,9vh,66px);border:0;border-radius:14px;background:#f2f8f4;box-shadow:0 3px 0 #d3e6da;font-size:clamp(20px,3.6vw,30px);font-weight:800;color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+.card.bk{background:#fdecec;color:#d9534f;box-shadow:0 3px 0 #f2c9c9}
+.card:active{background:var(--pri2);box-shadow:0 1px 0 #d3e6da}
+#done{display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:12px;background:var(--card);box-shadow:0 -1px 0 var(--line);font-size:20px;font-weight:800;color:var(--ok)}
+#done button,.ov button.go{padding:12px 22px;font-size:18px;border:0;border-radius:30px;background:var(--pri);color:#fff;font-weight:700;box-shadow:0 3px 0 var(--pri3)}
+.floater{position:fixed;z-index:70;width:70px;height:70px;border-radius:18px;background:var(--pri);color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;transform:translate(-50%,-50%) scale(1.05);pointer-events:none;box-shadow:0 10px 24px rgba(30,158,106,.35)}
+#pop{position:fixed;right:24px;z-index:60;display:none;font-size:72px;font-weight:800;line-height:1;pointer-events:none}
+#pop.show{display:block;animation:pp .9s ease-out}
+@keyframes pp{0%{transform:scale(.3) rotate(-14deg);opacity:0}30%{transform:scale(1.2) rotate(8deg);opacity:1}55%{transform:scale(.94)}100%{transform:scale(1);opacity:1}}
+.ov{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:18px;display:none}
+.ov h2{margin:4px 0 14px;font-size:22px;font-weight:800}
+#mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+#mgrid button{display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;padding:14px;border:0;border-radius:var(--r);background:var(--card);box-shadow:var(--sh);font-size:15px;font-weight:700;color:var(--ink)}
+#mgrid button b{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;background:var(--pri2);font-size:20px;color:var(--pri)}
+#mgrid button small{font-weight:500;color:var(--sub);font-size:12px}
+#mgrid button:disabled{opacity:.45;box-shadow:none}
+#mgrid button.free{background:var(--pri);color:#fff;box-shadow:0 3px 0 var(--pri3),0 6px 16px rgba(30,158,106,.25)}
+#mgrid button.free b{background:#fff;color:var(--pri)}
+#mgrid button.free small{color:#e6fff1;font-weight:700;font-size:13px}
+.mrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.mrow button{padding:11px 18px;border:0;border-radius:30px;background:var(--card);box-shadow:var(--sh);font-size:15px;font-weight:700;color:var(--ink)}
+.ov label{display:block;margin:12px 0 4px;font-weight:700}
+.ov input,.ov select{font-family:inherit;font-size:22px;padding:8px 12px;border-radius:14px;border:2px solid var(--line);background:var(--card);width:min(100%,320px)}
+.ov input:focus,.ov select:focus{outline:none;border-color:var(--pri)}
+#ferr{color:#d9534f;font-weight:700;margin-top:8px}
+#mulpop{position:fixed;right:10px;top:96px;z-index:45;display:none;width:min(260px,46vw);background:var(--card);border-radius:var(--r);padding:8px;box-shadow:0 12px 30px rgba(30,58,47,.18)}
+#mulpop .mh{display:flex;justify-content:space-between;align-items:center;font-size:14px;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--pri);color:#fff;border-radius:12px;padding:6px 8px}
+#mulpop .mh b::before{content:"✥ ";opacity:.8}
+#mulpop .mh button{border:0;border-radius:50%;width:28px;height:28px;background:rgba(255,255,255,.25);color:#fff;font-size:14px}
+#mpick{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+#mpick button{width:30px;height:30px;border:0;border-radius:50%;background:#f2f8f4;font-weight:800;font-size:14px;color:var(--ink)}
+#mpick button.sel{background:var(--pri);color:#fff}
+.mr{display:flex;justify-content:flex-end;gap:3px;margin:2px 0}
+.mc{width:40px;height:42px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;border-radius:10px}
+.mc.in{border:2px dashed #c3dccd;background:#f5faf7}
+.mc.act{border-color:var(--acc);background:var(--acc2)}
+.mc.ok{border:2px solid var(--ok);color:var(--pri);background:#e1f4ea}
+.mc.cy{height:28px;font-size:17px}
+#mulpop hr{border:0;border-top:3px solid var(--ink);margin:4px 0}
+#mres{text-align:center;font-weight:800;font-size:16px;min-height:24px;color:var(--pri)}
+#yay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;background:rgba(30,58,47,.28);text-align:center}
+#ycard{background:var(--card);border-radius:24px;padding:28px 34px 24px;box-shadow:0 14px 40px rgba(30,58,47,.2);display:flex;flex-direction:column;align-items:center;gap:10px;animation:yin .35s ease-out;max-width:92vw}
+@keyframes yin{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+#yemo{width:76px;height:76px;border-radius:50%;background:var(--pri);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center}
+#yw{font-size:clamp(30px,6vw,46px);font-weight:800;color:var(--pri)}
+#yq{font-size:clamp(20px,3.6vw,28px);font-weight:700;color:var(--ink)}
+#ybtn{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+#ybtn button{padding:12px 24px;font-size:18px;border:0;border-radius:30px;background:var(--pri);color:#fff;font-weight:800;box-shadow:0 3px 0 var(--pri3)}
+#ybtn button.sub{background:var(--pri2);color:var(--pri);box-shadow:none}
+@media (max-height:600px){header{padding:4px 10px}#expr{font-size:24px}.step{font-size:12px;padding:3px 9px}#lvbar{font-size:12px;padding-top:4px}}
+ruby{ruby-position:over}
+rt{font-size:.46em;font-weight:700;letter-spacing:-.02em;opacity:.85}
+#bubble,#bhint,#lvbar,.ov,#done,#yay{line-height:2}
+.ib.wide{width:auto;padding:0 14px;border-radius:21px;font-size:15px;font-weight:800;color:var(--pri)}
+#demopop{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(30,58,47,.35);padding:12px}
+#dpbox{width:min(1100px,96vw);height:min(760px,92vh);background:var(--card);border-radius:22px;box-shadow:0 18px 50px rgba(30,58,47,.3);display:flex;flex-direction:column;overflow:hidden;animation:yin .3s ease-out}
+#dphead{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--pri);color:#fff;font-size:17px}
+#dphead button{border:0;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;font-size:16px}
+#dpframe{flex:1;border:0;width:100%;background:var(--bg)}
+#dpfoot{display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:10px 16px;border-top:1px solid var(--line);font-weight:700;font-size:15px}
+#dpfoot input{width:22px;height:22px;vertical-align:middle;accent-color:var(--pri)}
+#dpskip{border:0;border-radius:30px;padding:10px 22px;background:var(--pri);color:#fff;font-size:17px;font-weight:800;box-shadow:0 3px 0 var(--pri3)}
+body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly #cards,body.demoonly #done,body.demoonly #skipBtn{display:none!important}
+#gtabs{display:flex;gap:8px;margin-bottom:6px}
+#gtabs button{flex:1;max-width:220px;padding:12px 10px;border:0;border-radius:16px;background:var(--card);box-shadow:var(--sh);font-size:19px;font-weight:800;color:var(--sub)}
+#gtabs button.on{background:var(--pri);color:#fff;box-shadow:0 3px 0 var(--pri3)}
+#bpair{display:none;margin-top:8px;padding:6px 12px;border-radius:12px;background:var(--pri2);color:var(--pri);font-size:22px;font-weight:800;line-height:1.4}
+#home{background:linear-gradient(160deg,#eef6f1,#dff2e7)}
+#hwrap{max-width:760px;margin:0 auto;padding:6vh 8px 20px;text-align:center}
+#htitle{font-size:clamp(34px,7vw,56px);font-weight:800;color:var(--pri);margin:0 0 6px;letter-spacing:.06em}
+#hsub{font-size:20px;font-weight:700;color:var(--sub);margin:0 0 26px}
+#hgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.hb{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 10px;border:0;border-radius:24px;background:var(--card);box-shadow:0 4px 0 #cfe3d7,0 10px 22px rgba(30,58,47,.08);font-size:clamp(22px,4.4vw,30px);font-weight:800;color:var(--ink)}
+.hb .hi{display:flex;align-items:center;justify-content:center;width:clamp(64px,12vw,84px);height:clamp(64px,12vw,84px);border-radius:50%;font-size:clamp(38px,7vw,52px);color:#fff;background:var(--pri)}
+.hb.add .hi{background:#2fb37a}.hb.sub .hi{background:#27a38f}.hb.mul .hi{background:#1e8e62}.hb.div .hi{background:#177a55}
+#gtabs button{flex:0 0 auto;max-width:none;padding:10px 18px;color:var(--pri)}
+</style>
+</head>
+<body>
+<!-- ===== 画面上部：タイトル(長押しで管理者ページ)・メニュー・やり方・読み上げON/OFF・もう一度読む ===== -->
+<header>
+  <h1>ひっさん れんしゅう</h1>
+  <button class="ib" onclick="openMenu()" aria-label="メニュー">📋</button>
+  <button class="ib wide" onclick="openDemo(curDemoLv())" aria-label="やり方">🎬 やり方</button>
+  <button class="ib" id="mute" onclick="toggleMute()" aria-label="よみあげ">🔊</button>
+  <button class="ib" onclick="reread()" aria-label="もういちど よむ">🔁</button>
+</header>
+<!-- 管理者バー：管理者ページで「全レベルを ひらく」を押したときだけ表示。テスト用のスキップ・合格・やり方ボタン -->
+<div id="adminbar">管理者:
+  <button onclick="adminSkip()">⏭ この問題をスキップ</button>
+  <button onclick="adminPass()">✅ ぜんぶ◯で合格</button>
+  <button onclick="openDemo(curDemoLv())">🎬 やり方</button>
+  <span id="adbg"></span>
+</div>
+<!-- いまのレベル名と、10問の進み具合(緑=合格の問題、黄=まちがいが多かった問題、青わく=いまの問題) -->
+<div id="lvbar"><span id="lvname"></span><span id="dots"></span></div>
+<!-- 手順のチップ。いまの手順だけ緑になる -->
+<div id="top"><div class="steps" id="steps"></div></div>
+<!-- ===== メイン：左=指示とヒントの吹き出し、右=横式と筆算の盤面(SVGで描く) ===== -->
+<div id="stage">
+  <aside id="side"><div id="bubble">
+    <div id="bdemo">🎬 やり方：みてみよう</div>
+    <div id="bmsg"></div><div id="bpair"></div><div id="bhint"></div><div id="choices"></div>
+    <button id="hintBtn" onclick="showHint()">💡ヒント</button>
+    <button id="mulBtn" onclick="openMul()">✖ かけ算の ひっさん</button>
+    <button id="nextBtn" onclick="adv()">つぎへ ▶</button>
+    <button id="skipBtn" onclick="skipDemo()">スキップ ▶</button>
+  </div></aside>
+  <div id="board"><div id="expr"></div><svg id="svg" preserveAspectRatio="xMidYMid meet"></svg></div>
+</div>
+<!-- 数字カード(1〜9,0,小数点,けす)。タップでも、□へドラッグでも入力できる。中身はscriptで作る -->
+<div id="cards"></div>
+<!-- 1問おわったとき・10問おわったときに、数字カードの代わりに出る結果と次へボタン -->
+<div id="done"><span id="dmsg"></span><span id="dbtn"></span></div>
+<!-- 正解の⭐・不正解の？を右上に一瞬だけ出す場所 -->
+<div id="pop"></div>
+<!-- ===== やり方ポップアップ：このページ自身をiframeの中に読み込み、自動で解いて見せる。「次回からは表示しない」はレベルごとに保存 ===== -->
+<div id="demopop"><div id="dpbox">
+  <div id="dphead"><b id="dptitle"></b><button onclick="closeDemo()" aria-label="とじる">✕</button></div>
+  <iframe id="dpframe" title="やり方"></iframe>
+  <div id="dpfoot"><label><input type="checkbox" id="dpno" onchange="setNoDemo(this.checked)"> 次回からは 表示しない</label><button id="dpskip" onclick="closeDemo()">スキップ ▶</button></div>
+</div></div>
+
+<!-- わり算で、わる数が2けた以上のときに使う「かけ算の筆算」小窓。上の帯をドラッグして動かせる -->
+<div id="mulpop">
+  <div class="mh"><b>✖ かけ算の ひっさん</b><button onclick="closeMul()">✕</button></div>
+  <div id="mpick"></div><div id="mgm"></div><div id="mres"></div>
+  <div style="font-size:12px;color:#5a6b80">オレンジの □ に 数字カードで こたえよう。うめおわったら 答えを ひっさんに うつそう。</div>
+</div>
+
+<!-- 1問とけたときの「できた！」カード(盤面の上にうすく重ねて出す) -->
+<div id="yay"><div id="ycard"><div id="yemo">✓</div><div id="yw"></div><div id="yq"></div><div id="ybtn"></div></div></div>
+
+<!-- ===== 全画面の切りかえ画面(.ov)：メニュー／じぶんで数をいれる／管理者 ===== -->
+<!-- トップページ：アプリを開くと最初に出る。4つの計算から選ぶ -->
+<div id="home" class="ov">
+  <div id="hwrap">
+    <h1 id="htitle">ひっさんの れんしゅう</h1>
+    <p id="hsub">どの けいさんを れんしゅうする？</p>
+    <div id="hgrid">
+      <button class="hb add" onclick="setGroup('add')"><span class="hi">＋</span><span>たし算</span></button>
+      <button class="hb sub" onclick="setGroup('sub')"><span class="hi">−</span><span>ひき算</span></button>
+      <button class="hb mul" onclick="setGroup('mul')"><span class="hi">×</span><span>かけ算</span></button>
+      <button class="hb div" onclick="setGroup('div')"><span class="hi">÷</span><span>わり算</span></button>
+    </div>
+  </div>
+</div>
+<!-- メニュー：えらんだ計算のレベルのカード(前のレベルに合格すると次がひらく) -->
+<div id="menu" class="ov">
+  <div id="gtabs"><button onclick="openHome()">🏠 トップへ もどる</button></div>
+  <h2 id="mtitle">どの わり算を れんしゅうする？</h2>
+  <div id="mgrid"></div>
+  <div class="mrow">
+    <button onclick="pl?closeAll():openHome()">とじる</button>
+  </div>
+</div>
+<!-- じゆうれんしゅう：先生や子どもが数を入れて、その問題を手順どおりに解ける(しゅくだい用) -->
+<div id="free" class="ov">
+  <h2>✏️ じぶんで 数を いれよう</h2>
+  <label>けいさん</label><select id="fop" onchange="freeOp()"><option value="add">たしざん (+)</option><option value="sub">ひきざん (−)</option><option value="mul">かけざん (×)</option><option value="div">わりざん (÷)</option></select>
+  <label id="lfa">わられる数 (÷ の まえ)</label><input id="fa" inputmode="decimal" placeholder="れい 12.6">
+  <label id="lfb">わる数 (÷ の うしろ)</label><input id="fb" inputmode="decimal" placeholder="れい 0.05">
+  <label id="lfm">こたえかた</label>
+  <select id="fm"><option value="exact">わりきれるまで</option><option value="rem">あまりを だす (せいすう)</option><option value="remI">いちのくらいまで わって しょうすうの あまりを だす</option><option value="round:1">がいすう (しょうすうだい1いまで)</option><option value="round:2">がいすう (しょうすうだい2いまで)</option><option value="round:s2">がいすう (うえから2けた)</option><option value="round:s3">がいすう (うえから3けた)</option></select>
+  <div id="ferr"></div>
+  <div class="mrow"><button class="go" onclick="startFree()">はじめる</button><button onclick="openMenu()">もどる</button></div>
+</div>
+<!-- 管理者ページ(先生用・テスト用)：全レベルをひらく／進み具合を消す。メニューからは見えない -->
+<div id="admin" class="ov">
+  <h2>🛠 管理者ページ (テスト用・かぎなし)</h2>
+  <p>全レベルを ひらいたり、しんちょくを 消したり できます。子どもの たんまつで つかったあとは「しんちょくを リセット」で もとに もどしてください。</p>
+  <div class="mrow">
+    <button onclick="adminUnlock()">全レベルを ひらく</button>
+    <button onclick="adminReset()">しんちょくを リセット</button>
+    <button onclick="openMenu()">レベル選択へ</button>
+  </div>
+  <p id="adstat"></p>
+</div>
+
+<script>
+
+// ====================== 動き(JavaScript) ======================
+// このページ自身のHTMLを、最初の状態のまま文字列で保存しておく。
+// やり方ポップアップのiframeに、これを読ませて「見本の自動再生だけをする」ページとして使う。
+const SRC_HTML="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+
+// よく使う小さな道具：$=要素をidで取る、R=乱数、pick=ランダムに1つ選ぶ、fm=整数を小数の文字に、gcd=最大公約数
+const $=id=>document.getElementById(id);
+const R=(l,h)=>l+Math.floor(Math.random()*(h-l+1)),pick=a=>a[R(0,a.length-1)];
+const nz=n=>!String(n).includes("0");
+const fm=(v,d)=>{const s=String(v).padStart(d+1,"0");return d?s.slice(0,-d)+"."+s.slice(-d):s};
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+
+// わり算の問題を作る：整数aIと小数けたaDから「12.6」のような文字を作り、末尾のむだな0を取る
+function mk(aI,aD,bI,bD,mode,d,sg){
+ while(aD>0&&aI%10===0){aI/=10;aD--}
+ while(bD>0&&bI%10===0){bI/=10;bD--}
+ return{a:fm(aI,aD),b:fm(bI,bD),mode,d,sig:sg};
+}
+
+// 小数のわる数の候補 [整数部分としての数, 小数けた数]。例 [5,2]=0.05、[15,1]=1.5
+const BL=[[2,1],[3,1],[4,1],[5,1],[6,1],[8,1],[9,1],[12,2],[15,2],[5,2],[25,2],[35,2],[15,1],[25,1]];
+
+// a÷b がわりきれない(小数が終わらない)ときtrue。がい数の問題を作るのに使う
+const nonTerm=(a,b)=>{let den=b/gcd(a,b);while(den%2===0)den/=2;while(den%5===0)den/=5;return den>1};
+
+/* ---------- レベル(パターン) ---------- */
+
+// レベルの一覧。n=名前、demo=やり方で見せる問題、g()=ランダムに1問作る関数
+// grpがないものは「わり算」、あとで追加するものは「かけ算」。
+const LV=[
+ {n:"3けた ÷ 1けた",demo:{a:"372",b:"6"},g(){for(;;){const b=R(2,9),q=R(Math.ceil(100/b),Math.floor(999/b));if(nz(q))return mk(b*q,0,b,0)}}},
+ {n:"あまりの ある わり算",demo:{a:"85",b:"4",mode:"rem"},g(){for(;;){const b=R(3,9),a=R(40,999);if(a%b)return mk(a,0,b,0,"rem")}}},
+ {n:"3けた ÷ 2けた",demo:{a:"156",b:"12"},g(){for(;;){const b=R(12,49);if(b%10===0)continue;const q=R(Math.ceil(100/b),Math.floor(999/b));if(q>=3&&nz(q))return mk(b*q,0,b,0)}}},
+ {n:"小数 ÷ 整数",demo:{a:"7.2",b:"3"},g(){for(;;){const b=R(2,9),q=R(12,99),a=b*q;if(q%10&&a%10)return mk(a,1,b,0)}}},
+ {n:"わりきれるまで わる",demo:{a:"7",b:"4"},g(){for(;;){const b=pick([2,4,5]),a=R(3,49);if(a%b)return mk(a,0,b,0)}}},
+ {n:"小数 ÷ 小数 (0.05 など)",demo:{a:"2.52",b:"0.12"},g(){for(;;){const[bi,bd]=pick(BL),q=R(2,40),a=bi*q;if(a<1000&&a%(10**bd))return mk(a,bd,bi,bd)}}},
+ {n:"整数 ÷ 小数",demo:{a:"6",b:"0.4"},g(){for(;;){const[bi,bd]=pick(BL),q=R(2,60),p=bi*q;if(p%(10**bd)===0){const a=p/10**bd;if(a>=2&&a<100)return mk(a,0,bi,bd)}}}},
+ {n:"商が 1より 小さい (1.2 ÷ 1.5)",demo:{a:"1.2",b:"1.5"},g(){for(;;){const[bi,bd]=pick([[5,1],[8,1],[15,1],[25,1],[12,1],[16,1],[24,1],[4,1]]),qi=R(2,9);let a=bi*qi,ad=bd+1;while(ad>0&&a%10===0){a/=10;ad--}return mk(a,ad,bi,bd)}}},
+ {n:"小数の あまり (わる数が 小数も)",demo:{a:"13.4",b:"4",mode:"remI"},g(){
+   for(let t=0;t<300;t++){
+    const dc=Math.random()<.5,b=dc?R(2,9):R(3,9),ad=dc?pick([1,2]):1,a=R(100,999);
+    if(a%10===0)continue;
+    const p=mk(a,ad,b,dc?1:0,"remI");
+    try{const q=plan(p);if(q.rmv>0&&q.cy[0].q>=1&&q.cy.length>=2&&q.cy.length<=4)return p}catch(e){}
+   }
+   return mk(134,1,4,0,"remI");
+ }},
+ {n:"がい数 (小数第○位まで)",demo:{a:"10",b:"3",mode:"round",d:1},g(){for(;;){const d=R(1,2);let b,a;if(d===2){b=pick([3,6,7,9]);a=R(2,9)}else{b=pick([3,6,7,9,11,12]);a=R(5,49)}
+   if(nonTerm(a,b)&&a%b)return mk(a,0,b,0,"round",d)}}},
+ {n:"がい数 (上から ○けた)",demo:{a:"20",b:"7",mode:"round",sig:2},g(){for(;;){const sg=R(2,3),b=pick([3,6,7,9,11,12,13]),a=R(2,99);
+   if(nonTerm(a,b)&&a%b)return mk(a,0,b,0,"round",undefined,sg)}}}
+];
+
+// かけ算の問題 {op:"mul", a:かけられる数, b:かける数} を作る
+const mm=(a,b)=>({op:"mul",a,b});
+const nzd=n=>!String(n).includes("0");
+LV.push(
+ {grp:"mul",n:"2けた × 1けた",demo:mm("47","6"),g(){for(;;){const a=R(12,99),b=R(2,9);if((a%10)*b>=10)return mm(String(a),String(b))}}},
+ {grp:"mul",n:"3けた × 1けた",demo:mm("358","4"),g(){for(;;){const a=R(101,999),b=R(2,9);if((a%10)*b>=10)return mm(String(a),String(b))}}},
+ {grp:"mul",n:"2けた × 2けた",demo:mm("36","24"),g(){for(;;){const a=R(12,99),b=R(12,99);if(nzd(b)&&b%11)return mm(String(a),String(b))}}},
+ {grp:"mul",n:"3けた × 2けた",demo:mm("247","36"),g(){for(;;){const a=R(101,999),b=R(12,99);if(nzd(b))return mm(String(a),String(b))}}},
+ {grp:"mul",n:"小数 × 整数",demo:mm("2.36","7"),g(){for(;;){const ad=R(1,2),ai=R(12,ad===1?999:399);if(ai%10===0)continue;const b=Math.random()<.6?R(2,9):R(12,39);if(!nzd(b))continue;return mm(fm(ai,ad),String(b))}}},
+ {grp:"mul",n:"小数 × 小数",demo:mm("2.4","1.3"),g(){for(;;){const ai=R(12,99),bi=R(12,99);if(ai%10===0||bi%10===0||!nzd(bi))continue;return mm(fm(ai,1),fm(bi,1))}}},
+ {grp:"mul",n:"積が 1より 小さい・0を けす",demo:mm("2.5","0.4"),g(){for(;;){const ai=R(2,99),bi=R(2,9),ad=R(1,2),pr=ai*bi;if(ai%10===0)continue;if(pr<10**(ad+1)||pr%10===0)return mm(fm(ai,ad),fm(bi,1))}}}
+);
+
+// グループ(わり算/かけ算)ごとに、レベル番号 k(0から)をつけなおす
+const ad=(a,b)=>({op:"add",a,b}),sb=(a,b)=>({op:"sub",a,b});
+// たし算・ひき算のレベル。小数は「小数点をそろえて」書く(かけ算とのちがい)
+const dI=(n,d)=>fm(n,d);
+LV.push(
+ {grp:"add",n:"2けた ＋ 2けた",demo:ad("47","38"),g(){for(;;){const a=R(11,89),b=R(11,89);if(a%10+b%10>=10)return ad(String(a),String(b))}}},
+ {grp:"add",n:"3けた ＋ 3けた",demo:ad("386","457"),g(){for(;;){const a=R(101,899),b=R(101,899);if(a+b<1000&&(a%10+b%10>=10||a%100+b%100>=100))return ad(String(a),String(b))}}},
+ {grp:"add",n:"4けた ＋ 4けた",demo:ad("2748","1596"),g(){for(;;){const a=R(1001,7999),b=R(1001,7999);let c=0,x=a,y=b,k=0;while(x||y){if(x%10+y%10+k>=10){c++;k=1}else k=0;x=Math.floor(x/10);y=Math.floor(y/10)}if(c>=2&&a+b<10000)return ad(String(a),String(b))}}},
+ {grp:"add",n:"小数 ＋ 小数",demo:ad("2.7","3.5"),g(){for(;;){const a=R(11,99),b=R(11,99);if(a%10&&b%10)return ad(dI(a,1),dI(b,1))}}},
+ {grp:"add",n:"けた数の ちがう 小数の たし算",demo:ad("3.46","2.8"),g(){for(;;){const a=R(101,999),bd=pick([0,1]),b=bd?R(11,99):R(1,9);if(a%10===0||(bd&&b%10===0))continue;return Math.random()<.5?ad(dI(a,2),dI(b,bd)):ad(dI(b,bd),dI(a,2))}}},
+ {grp:"add",n:"こたえの 右はしの 0を けす",demo:ad("1.25","2.75"),g(){for(;;){const d=R(1,2),a=R(11,d===2?499:99),b=R(11,d===2?499:99);if(a%10&&b%10&&(a+b)%10===0)return ad(dI(a,d),dI(b,d))}}},
+ {grp:"sub",n:"2けた − 2けた",demo:sb("52","27"),g(){for(;;){const a=R(30,99),b=R(11,a-1);if(a%10<b%10)return sb(String(a),String(b))}}},
+ {grp:"sub",n:"3けた − 3けた",demo:sb("534","278"),g(){for(;;){const a=R(200,999),b=R(101,a-1);if(a%10<b%10||a%100<b%100)return sb(String(a),String(b))}}},
+ {grp:"sub",n:"0の ある くり下がり",demo:sb("302","178"),g(){for(;;){const h=R(2,9),u=R(0,8),a=h*100+u,b=R(101,a-1);if(b%10>u&&Math.floor(b/10)%10>0)return sb(String(a),String(b))}}},
+ {grp:"sub",n:"4けた − 4けた",demo:sb("5203","1467"),g(){for(;;){const a=R(2000,9999),b=R(1001,a-1);let c=0,x=a,y=b,k=0;while(x){if(x%10-k<y%10){c++;k=1}else k=0;x=Math.floor(x/10);y=Math.floor(y/10)}if(c>=2)return sb(String(a),String(b))}}},
+ {grp:"sub",n:"小数 − 小数",demo:sb("5.2","2.7"),g(){for(;;){const a=R(21,99),b=R(11,a-1);if(a%10&&b%10&&a%10<b%10)return sb(dI(a,1),dI(b,1))}}},
+ {grp:"sub",n:"けた数の ちがう 小数の ひき算",demo:sb("5","2.3"),g(){for(;;){const k=R(0,2);if(k===0){const a=R(2,9),b=R(11,a*10-1);if(b%10)return sb(String(a),dI(b,1))}else if(k===1){const a=R(21,99),b=R(101,a*10-1);if(a%10&&b%10)return sb(dI(a,1),dI(b,2))}else{const a=R(3,9),b=R(101,a*100-1);if(b%10)return sb(String(a),dI(b,2))}}}},
+ {grp:"sub",n:"こたえが 1より 小さい・0を けす",demo:sb("2.45","1.95"),g(){for(;;){const d=R(1,2),a=R(12,d===2?599:99),b=R(11,a-1);if(a%10===0||b%10===0)continue;const df=a-b;if(df<10**d||df%10===0)return sb(dI(a,d),dI(b,d))}}}
+);
+LV.forEach(l=>{if(!l.grp)l.grp="div"});
+{const c={div:0,mul:0,add:0,sub:0};LV.forEach(l=>{l.k=c[l.grp]++})}
+const GN={div:"わり算",mul:"かけ算",add:"たし算",sub:"ひき算"};
+const lvTitle=n=>`${GN[LV[n].grp]} レベル${LV[n].k+1}：${LV[n].n}`;
+
+// そのレベルの問題を、なるべく重ならないように10問作る
+function genRound(n){
+ const ps=[],seen=new Set();let t=0;
+ while(ps.length<10&&t++<300){const p=LV[n].g(),k=p.a+"/"+p.b;if(!seen.has(k)){seen.add(k);ps.push(p)}}
+ while(ps.length<10)ps.push(LV[n].g());
+ return ps;
+}
+
+/* ---------- 手順づくり ---------- */
+
+// 問題Pから「手順のリスト(S)」を作る。かけ算なら planMul、わり算なら planDiv。
+// S の1つ1つが画面の1ステップ。type でステップの種類がわかる：
+//   place=横式の数を□へ運ぶ／choice=ボタンで選ぶ／q=商をたてる／prod,mul=かける／rem=ひく
+//   drop=数をおろす／sum=たす／point,mpt,rpt=小数点をうつ／zero=0をかく／strike=右はしの0を斜線で消す
+// pd:true のステップは、答えを1けたずつの□(slots)に入れる。t:"m"の小さい○は、くり上がり・くり下がり用(書かなくても正解になる)。
+// items は、そのステップに正解したあと盤面に残す数字や線。
+function plan(P){
+ if(P.op==="mul")return planMul(P);
+ if(P.op==="add"||P.op==="sub")return planAS(P);
+ const r=planDiv(P);r.kind="div";r.lab="商";r.chips=["じゅんび","たてる","かける","ひく","おろす","しあげ"];return r;
+}
+
+// かけ算の手順：じゅんび(2つの数を置く)→かける(かける数の一の位から1段ずつ)→たす(2段以上のとき)
+// →しあげ(小数点のけた数を選ぶ→小数点をうつ→1より小さければ0を書く→右はしの0を消す)
+// 小数は「右はしをそろえて」書き、小数点はないものとして整数のかけ算をする。
+
+// たし算・ひき算の手順：じゅんび(小数点・位をそろえて2つの数を置く)→たす/ひく(右はしの位から1けたずつ)
+// →しあげ(小数点をうつ→1より小さければ0を書く→右はしの0を消す)
+// くり上がりは上の数の右上の小さい○に、くり下がりは上の数の右上の小さい○(元の数には斜線)に書いてもよい。
+function planAS(P){
+ const add=P.op==="add",dc=t=>t.includes(".")?t.length-t.indexOf(".")-1:0;
+ const dA=dc(P.a),dB=dc(P.b),dec=Math.max(dA,dB),As=P.a.replace(".",""),Bs=P.b.replace(".",""),offA=dec-dA,offB=dec-dB;
+ const Ai=parseInt(As,10)*10**offA,Bi=parseInt(Bs,10)*10**offB,total=add?Ai+Bi:Ai-Bi,F=String(total);
+ const lenAc=As.length+offA,lenBc=Bs.length+offB,Lw=Math.max(lenAc,lenBc);
+ const W=Math.max(Lw+1,F.length+1,dec+2);
+ const tv=c=>c<offA?0:(c<lenAc?+As[As.length-1-(c-offA)]:0),bv=c=>c<offB?0:(c<lenBc?+Bs[Bs.length-1-(c-offB)]:0);
+ const td=[],bd=[];for(let c=0;c<Lw;c++){td.push(c<lenAc&&(c>=offA||!add)?String(tv(c)):null);bd.push(c>=offB&&c<lenBc?String(bv(c)):null)}
+ const S=[],push=o=>S.push(o),w1=add?"たされる数":"ひかれる数",w2=add?"たす数":"ひく数",sg=add?"+":"−";
+ push({type:"place",which:"a",ans:P.a,chip:"じゅんび",pre:`${P.a} ${sg} ${P.b} を ひっさんで とこう。`,msg:`${w1} ${P.a} を 上の □ に いれよう`,hint:`${sg} の まえの 数が ${w1} だよ。`});
+ push({type:"place",which:"b",ans:P.b,chip:"じゅんび",msg:`${w2} ${P.b} を 下の □ に いれよう。`+(dec?"小数点の いちを たてに そろえて かくよ。":"位を たてに そろえて かくよ。"),hint:`${sg} の うしろの 数が ${w2} だよ。`});
+ const cs=S.length,slots=[],items=[{t:F,col:0,row:2,cls:"w"}],cin=[];
+ if(add){
+  let cr=0;
+  for(let c=0;c<F.length;c++){
+   const v=tv(c)+bv(c)+cr;cr=v>=10?1:0;
+   slots.push({t:"d",j:F.length-1-c});
+   if(cr&&c+1<Lw){slots.push({t:"m",col:c+1,row:0,ans:"1"});cin.push(c+1);items.push({k:"cy",col:c+1,row:0,t:"1",mk:`${c+1},0`})}
+  }
+ }else{
+  const T=[],B=[];for(let c=0;c<Lw;c++){T.push(tv(c));B.push(bv(c))}
+  const eff=T.slice(),bAt=[];
+  for(let c=0;c<Lw;c++){if(eff[c]<B[c]){eff[c]+=10;eff[c+1]-=1;bAt.push(c)}}
+  const used=new Set();
+  for(let c=0;c<Lw;c++){
+   if(bAt.includes(c)){const ch=[c+1];let q=c+1;while(T[q]===0&&bAt.includes(q)){q++;ch.push(q)}
+    ch.reverse().forEach(q=>{if(used.has(q))return;used.add(q);slots.push({t:"m",col:q,row:0,ans:String(eff[q]),sl:1});
+     items.push({k:"cy",col:q,row:0,t:String(eff[q]),mk:`${q},0`},{k:"sl",col:q,row:0,mk:`${q},0`})});}
+   if(c<F.length)slots.push({t:"d",j:F.length-1-c});
+  }
+  cin.push(...bAt);
+ }
+ const hasMini=slots.some(o=>o.t==="m");
+ push({type:"asc",pd:true,slots,ans:F,col:0,row:2,len:F.length,op:P.op,td,bd,cin,chip:add?"たす":"ひく",
+  pre:!add&&offA?`${P.a} は ${P.a}${dA?"":"."}${"0".repeat(offA)} と かんがえて ひこう。`:"",
+  msg:`${P.a} ${sg} ${P.b} ${"は"}？ 右はしの 位から じゅんばんに ${add?"たそう":"ひこう"}。`+(hasMini?(add?" くり上がりは 小さい ○ に かいても いいよ。":" くり下がりは 小さい ○ に かいても いいよ。"):""),
+  hint:add?"たての れつの 数を たそう。10 を こえたら、となりの 位へ 1 くり上がるよ。":"ひけない ときは、となりの 位から 1 かりて、10 を たして ひこう。かした 位は 1 へるよ。",
+  items});
+ let qs=F;
+ if(dec>0){
+  push({type:"mpt",ans:".",chip:"しあげ",msg:"こたえの 小数点を、上の 小数点と たてに そろえて うとう。「・」の カードを □ に いれよう。",hint:"上の 数の 小数点の まっすぐ 下に うつよ。",items:[{k:"mdot"}]});
+  if(F.length<=dec){const n=dec+1-F.length,z="0".repeat(n);
+   push({type:"zero",pd:true,slots:[...Array(n)].map((_,j)=>({t:"d",j:n-1-j})),ans:z,col:F.length,row:2,len:n,chip:"しあげ",
+    msg:"こたえは 1 より 小さいね。小数点の 左と、あいている ところに 0 を かこう。",hint:"一の位に 数が ない ときは 0 を かくよ。",items:[{t:z,col:F.length,row:2,cls:"w"}]});}
+  const Fp=F.padStart(dec+1,"0");let z=0;while(z<dec&&Fp[Fp.length-1-z]==="0")z++;
+  const ip=Fp.slice(0,Fp.length-dec),dp2=Fp.slice(Fp.length-dec).replace(/0+$/,"");qs=ip+(dp2?"."+dp2:"");
+  if(z>0){const tg=[...Array(z)].map((_,c)=>({col:c,row:2}));
+   push({type:"strike",tg,chip:"しあげ",msg:"小数の 右はしの 0 は いらないね。0 を タップして ／ で けそう。"+(z===dec?" 小数点も いっしょに けすよ。":""),hint:"小数の 右はしの 0 は けしても 数の 大きさは かわらないよ。",
+    items:[...tg.map(t=>({k:"sl",col:t.col,row:t.row})),...(z===dec?[{k:"slp"}]:[])]});}
+ }else if(!add&&total===0)qs="0";
+ return {kind:"as",S,cs,qs,lab:"答え",chips:["じゅんび",add?"たす":"ひく","しあげ"],sign:sg,Rf:2,W,Lw,dA,dB,dec,As,Bs,F,offA,offB,padA:add?0:offA,minis:new Set()};
+}
+function planMul(P){
+ const dc=t=>t.includes(".")?t.length-t.indexOf(".")-1:0;
+ const dA=dc(P.a),dB=dc(P.b),As=P.a.replace(".",""),Bs=P.b.replace(".","");
+ const Ai=parseInt(As,10),Bi=parseInt(Bs,10),AiS=String(Ai),total=Ai*Bi,F=String(total),dec=dA+dB;
+ const parts=[];String(Bi).split("").reverse().map(Number).forEach((d,p)=>{if(d>0)parts.push({p,d,v:Ai*d})});
+ const K=parts.length,Rf=K>=2?2+K:2,Lw=Math.max(As.length,Bs.length);
+ const W=Math.max(Lw+1,F.length,dec+1,...parts.map(o=>String(o.v).length+o.p))+1;
+ const S=[],push=o=>S.push(o),PL=["一","十","百","千"];
+ push({type:"place",which:"a",ans:P.a,chip:"じゅんび",pre:`${P.a} × ${P.b} を ひっさんで とこう。`,msg:`かけられる数 ${P.a} を 上の □ に いれよう`,hint:"× の まえの 数が かけられる数 だよ。"});
+ push({type:"place",which:"b",ans:P.b,chip:"じゅんび",msg:`かける数 ${P.b} を 下の □ に いれよう。`+(dec?"小数点は そろえないで、右はしを そろえて かくよ。":""),hint:"× の うしろの 数が かける数 だよ。右はしを そろえよう。"});
+ const cs=S.length;
+ parts.forEach((o,idx)=>{
+  const row=2+idx,ps=String(o.v),ad=AiS.split("").reverse().map(Number),cyM=[];
+  {let cr=0;ad.forEach((d,q)=>{const v=d*o.d+cr;cr=Math.floor(v/10);if(q<ad.length-1&&cr>0)cyM.push({q:q+1,c:cr})})}
+  const slots=[];for(let q=0;q<ps.length;q++){slots.push({t:"d",j:ps.length-1-q});const co=cyM.find(x=>x.q===q+1);if(co)slots.push({t:"m",col:o.p+q+1,row,ans:String(co.c)})}
+  push({type:"mul",pd:true,slots,ans:ps,col:o.p,row,len:ps.length,chip:"かける",ai:AiS,md:o.d,cyq:cyM.map(x=>x.q),
+   pre:idx===0&&dec?"小数点は ないものと して、整数の かけ算と おなじように けいさん しよう。":"",
+   msg:`${AiS} × ${o.d} ${"は"}？`+(o.p>0?` ${o.d} は ${PL[o.p]}の位の 数。こたえは ${PL[o.p]}の位から かくよ。`:"")+(cyM.length?" くり上がりは 小さい ○ に かいても いいよ。":""),
+   hint:"一の位から じゅんばんに："+AiS.split("").reverse().map(x=>`${x}×${o.d}`).join("、")+"。くり上がった 数は つぎの こたえに たそう。",
+   hl:[],
+   items:[{t:ps,col:o.p,row,cls:"w"},...cyM.map(x=>({k:"cy",sx:1,col:o.p+x.q,row,t:String(x.c),mk:`${o.p+x.q},${row}`}))]});
+ });
+ if(K===1&&parts[0].p>0){const p0=parts[0].p;push({type:"zero",pd:true,slots:[...Array(p0)].map((_,j)=>({t:"d",j:p0-1-j})),ans:"0".repeat(p0),col:0,row:2,len:p0,chip:"しあげ",
+  msg:"右の あいている ところに 0 を かこう。",hint:"かける数の 0 の ぶん、0 を かくよ。",items:[{t:"0".repeat(p0),col:0,row:2,cls:"w"}]})}
+ if(K>=2){
+  const dig=(o,c)=>{const t=String(o.v),i=c-o.p;return i>=0&&i<t.length?+t[t.length-1-i]:null};
+  const cyS=[];let cr=0;
+  for(let c=0;c<F.length;c++){let sm=cr;parts.forEach(o=>{const d=dig(o,c);if(d!=null)sm+=d});cr=Math.floor(sm/10);if(cr>0&&c+1<F.length&&parts.some(o=>dig(o,c+1)!=null))cyS.push({c:c+1,v:cr})}
+  const slots=[];for(let c=0;c<F.length;c++){slots.push({t:"d",j:F.length-1-c});const co=cyS.find(x=>x.c===c+1);if(co)slots.push({t:"m",col:c+1,row:Rf,ans:String(co.v)})}
+  push({type:"sum",pd:true,slots,ans:F,col:0,row:Rf,len:F.length,chip:"たす",
+   msg:"たし算を しよう。たてに そろえて、右から じゅんばんに たすよ。"+(cyS.length?" くり上がりは 小さい ○ に かいても いいよ。":""),
+   hint:"おなじ たての れつの 数を たそう。くり上がりを わすれないでね。",
+   hl:parts.map((o,idx)=>({row:2+idx,from:o.p,to:o.p+String(o.v).length-1})),
+   items:[{t:F,col:0,row:Rf,cls:"w"},{k:"ln",row:Rf},...cyS.map(x=>({k:"cy",col:x.c,row:Rf,t:String(x.v),mk:`${x.c},${Rf}`}))]});
+ }
+ let qs=F;
+ if(dec>0){
+  const hl=[];if(dA)hl.push({row:0,from:0,to:dA-1});if(dB)hl.push({row:1,from:0,to:dB-1});
+  push({type:"choice",sub:"cnt",opts:["1けた","2けた","3けた","4けた"],ans:dec+"けた",chip:"しあげ",hl,
+   msg:"かけられる数と かける数の、小数点より 右の けたは あわせて なんけた？",hint:`${P.a} は ${dA}けた、${P.b} は ${dB}けた。あわせると いくつ？`});
+  push({type:"mpt",ans:".",chip:"しあげ",msg:`積の 小数点は、右はしから ${dec}けた の ところに うつよ。「・」の カードを □ に いれよう。`,hint:`右はしから ${dec}つ かぞえた ところに 小数点を おくよ。`,items:[{k:"mdot"}]});
+  if(F.length<=dec){const n=dec+1-F.length,z="0".repeat(n);
+   push({type:"zero",pd:true,slots:[...Array(n)].map((_,j)=>({t:"d",j:n-1-j})),ans:z,col:F.length,row:Rf,len:n,chip:"しあげ",
+    msg:"積は 1 より 小さいね。小数点の 左と、あいている ところに 0 を かこう。",hint:"一の位に 数が ない ときは 0 を かくよ。",items:[{t:z,col:F.length,row:Rf,cls:"w"}]});}
+  const Fp=F.padStart(dec+1,"0");let z=0;while(z<dec&&Fp[Fp.length-1-z]==="0")z++;
+  const ip=Fp.slice(0,Fp.length-dec),dp2=Fp.slice(Fp.length-dec).replace(/0+$/,"");qs=ip+(dp2?"."+dp2:"");
+  if(z>0){const tg=[...Array(z)].map((_,c)=>({col:c,row:Rf}));
+   push({type:"strike",tg,chip:"しあげ",msg:"小数の 右はしの 0 は いらないね。0 を タップして ／ で けそう。"+(z===dec?" 小数点も いっしょに けすよ。":""),hint:"小数の 右はしの 0 は けしても 数の 大きさは かわらないよ。",
+    items:[...tg.map(t=>({k:"sl",col:t.col,row:t.row})),...(z===dec?[{k:"slp"}]:[])]});}
+ }
+ return {kind:"mul",S,cs,qs,lab:"積",chips:["じゅんび","かける","たす","しあげ"],Rf,W,Lw,dA,dB,dec,As,Bs,F,K,minis:new Set()};
+}
+
+// わり算の手順。わる数が小数なら、まず小数点を何けた右へうつすか選び、整数のわり算にしてから進める。
+// 左から1けたずつ「われる？われない？」をたしかめ、われない位には一の位より左は×、一の位から右は0を書く。
+// mode："rem"=整数のあまり、"remI"=一の位までわって小数のあまり、"round"=四捨五入でがい数(d=小数第d位まで、sig=上からsigけた)
+function planDiv(P){
+ const dec=s=>s.includes(".")?s.length-s.indexOf(".")-1:0;
+ const kb=dec(P.b),N=parseInt(P.b.replace(".",""),10),md=P.mode||"exact",sg=P.sig||0;
+ const dg=P.a.replace(".","").split("").map(Number);
+ const dp=(P.a.includes(".")?P.a.indexOf("."):P.a.length)+kb;
+ while(dg.length<dp)dg.push(0);
+ const n0=dg.length,cy=[],skips=[];
+ const lim=md==="remI"?dp-1:md==="round"?(sg?99:dp+P.d):99;
+ let rem=0,started=false,ext=0;
+ for(let i=0;i<=lim;i++){
+  if(sg&&cy.length>=sg+1)break;
+  if(i>=dg.length){
+   if(md==="rem"||md==="remI")break;
+   if(md==="round"||(rem>0&&ext<4)){dg.push(0);ext++}else break;
+  }
+  const cur=rem*10+dg[i];
+  if(!started&&cur<N){skips.push({i,cur});rem=cur;continue}
+  const q=Math.floor(cur/N);
+  cy.push({i,cur,q,prod:q*N,r:cur-q*N});
+  started=true;rem=cur-q*N;
+ }
+ const f=cy[0].i,ni=Math.max(dp-f,0),qd=cy.map(c=>c.q),last=cy[cy.length-1];
+ const hasDec=cy.some(c=>c.i>=dp);
+ const qi=ni>0?qd.slice(0,ni).join(""):"0";
+ const qdc=hasDec?"0".repeat(Math.max(f-dp,0))+qd.slice(ni).join(""):"";
+ const mkStrike=tg=>({type:"strike",tg,chip:"しあげ",msg:"右はしの 0 は いらないね。0 を タップして ／ で けそう。",hint:"小数の 右はしの 0 は けしても 数の 大きさは かわらないよ。",items:tg.map(t=>({k:"sl",col:t.col,row:t.row}))});
+ let qs=qi+(hasDec?"."+qdc:""),fin3=null,fin2=null,fin=null,dd=null,ex=0,rmv=0;
+ const rr=1+2*cy.length;
+ if(md==="exact"){const zt=[];for(let k=cy.length-1;k>=0&&cy[k].q===0&&cy[k].i>=dp;k--)zt.push({col:cy[k].i,row:0});if(zt.length){fin3=mkStrike(zt);const qq=qdc.replace(/0+$/,"");qs=qi+(qq?"."+qq:"")}}
+ if(md==="rem"){qs+=" ･･･ "+last.r;ex=2}
+ if(md==="remI"){
+  const tr=dg.slice(dp,n0).join(""),rdig=String(last.r)+tr,rdec=n0-dp+kb,rm=fm(parseInt(rdig,10),rdec);
+  rmv=parseInt(rdig,10);qs+=" ･･･ "+rm;ex=3;
+  const need=Math.max(rdig.length,rdec+1),pads=[];
+  for(let c=n0-need;c<n0-rdig.length;c++)pads.push({t:"0",col:c,row:rr-0,cls:"ext"});
+  const rdot={k:"rdot"};
+  if(n0>dp)dd={type:"ddec",ans:tr,row:rr,pd:true,slots:[...tr].map((_,j)=>({t:"d",j})),col:n0-1,len:tr.length,chip:"おろす",hl:[{row:1,from:dp,to:n0-1}],
+   msg:"わられる数の 小数点より 右の 数を、ゆびで ひっぱって まっすぐ 下に おろそう。",hint:"矢印の ほうこうに、上の 数を 同じ ばしょの 下に かこう。",
+   items:[{t:tr,col:n0-1,row:rr,cls:"w"}]};
+  fin={type:"rpt",ans:".",row:rr,chip:"しあげ",
+   msg:"あまりの 小数点を うとう。もとの わられる数の オレンジの 小数点を ゆびで つまんで、まっすぐ 下の あまりへ おろそう。",
+   hint:"オレンジの 矢印の さきに ・ を おこう。",
+   items:[rdot]};
+  if(pads.length)fin2={type:"zero",pd:true,slots:pads.map((_,j)=>({t:"d",j:pads.length-1-j})),ans:"0".repeat(pads.length),col:n0-rdig.length-1,row:rr,len:pads.length,chip:"しあげ",
+   msg:"あまりは 1 より 小さいね。小数点の 左が あいているときは 0 を かこう。",hint:"一の位に 数が ないときは 0 を かくよ。",
+   items:[...pads.map(o=>({...o,cls:"w"}))]};
+  const zt=[];for(let z=0;z<rdec&&rdig[rdig.length-1-z]==="0";z++)zt.push({col:n0-1-z,row:rr});
+  const rmS=zt.length?fm(parseInt(rdig,10)/10**zt.length,rdec-zt.length):rm;
+  qs=qs.replace(" ･･･ "+rm," ･･･ "+rmS);
+  if(zt.length)fin3=mkStrike(zt);
+  (fin3||fin2||fin).items.push({k:"ar",t:"･･･ "+rmS});
+ }
+ if(md==="round"){
+  const jc=last.i;let ans,dl,msg,hint;
+  if(sg){
+   const Dn=parseInt(qd.slice(0,sg+1).join(""),10),val=Math.floor((Dn+5)/10),e=dp-1-(f+sg-1);
+   ans=e<0?fm(val,-e):String(val)+"0".repeat(e);dl=qd[sg];
+   msg=`商を 四捨五入して、上から ${sg}けたの がい数に しよう。`;
+   hint=`上から ${sg+1}けための 数は ${dl}。${dl>=5?"5以上 だから 切り上げ":"4以下 だから 切り捨て"} だよ。`;
+  }else{
+   dl=+qdc[P.d];ans=fm(Math.floor((parseInt(qi+qdc,10)+5)/10),P.d);
+   msg=`商を 四捨五入して、小数第${P.d}位まで 答えよう。`;
+   hint=`小数第${P.d+1}位は ${dl}。${dl>=5?"5以上 だから 切り上げ":"4以下 だから 切り捨て"} だよ。`;
+  }
+  qs=ans;ex=2;
+  fin={type:"round",ans,row:0,chip:"しあげ",hl:[{row:0,from:jc,to:jc,q:1}],msg,hint,items:[{k:"ar",t:"≒ "+ans}]};
+ }
+ const sa=dg.slice(0,Math.min(dp,n0)).join("")+(dp<n0?"."+dg.slice(dp,n0).join(""):"");
+
+ const S=[],push=o=>S.push(o);
+ push({type:"place",which:"b",ans:P.b,chip:"じゅんび",pre:`${P.a} ÷ ${P.b} を ひっさんで とこう。`,msg:`わる数 ${P.b} を ひだりの □ に いれよう`,hint:"÷ の うしろの 数が わる数 だよ。"});
+ push({type:"place",which:"a",ans:P.a,chip:"じゅんび",msg:`わられる数 ${P.a} を □ に いれよう`,hint:"÷ の まえの 数が わられる数 だよ。"});
+ if(kb){
+  push({type:"choice",sub:"shift",opts:["1けた","2けた","3けた"],ans:kb+"けた",row:0,chip:"じゅんび",msg:`わる数 ${P.b} を 整数に するには、小数点を 右へ なんけた うつす？ えらぼう。`,hint:`${P.b} の 小数点より 右に ある 数字の 数を かぞえよう。`});
+ }
+ const cs=S.length;
+ const marks=true;
+ const needPt=cy.some(c=>c.i>=dp),ptv=needPt&&dp<n0;
+ const zi=(!marks&&f>dp-1&&dp>=1)?[{t:"0",col:dp-1,row:0,cls:"w"}]:[];
+ const pt=(extra,msg)=>({type:"point",ans:".",row:0,chip:"じゅんび",msg:msg||"商の 小数点を うとう。わられる数の 小数点の まうえ だよ。",hint:"わられる数の 小数点から まっすぐ 上に ・ を おこう。",items:[{k:"qdot"},...zi,...extra]});
+ let pd=ptv;
+ if(ptv)push(pt([]));
+ cy.forEach((c,k)=>{
+  const ps=String(c.prod),rs=String(c.r),prev=k?String(cy[k-1].r):"",isExt=c.i>=n0;
+  const pc=k===0?{row:1,from:0,to:c.i}:{row:1+2*k,from:c.i-prev.length,to:c.i};
+  if(isExt&&!pd){
+   const e=[];if(k===0)for(let x=n0;x<=c.i;x++)e.push({t:"0",col:x,row:1,cls:"ext"});
+   push(pt([{k:"ddot"},...e],"わりきれないので 0 を つけたして つづけよう。まず 商の 小数点を うとう。"));pd=true;
+  }
+  if(k===0&&marks){
+   skips.forEach(sk=>{
+    const mk0=sk.i>=dp-1?"0":"×";
+    push({type:"choice",sub:"can",opts:["われる","われない"],ans:"われない",chip:"たてる",hl:[{row:1,from:0,to:sk.i}],
+     msg:`${sk.cur} は ${N} で われる？ われない？`,hint:`${sk.cur} は わる数 ${N} より 小さいよ。`});
+    push({type:"choice",sub:"mark",opts:["×","0"],ans:mk0,col:sk.i,row:0,len:1,chip:"たてる",hl:[{row:1,from:0,to:sk.i}],
+     msg:"われない ときは、商の この 位に なにを かく？",hint:`われない ときは、一の位 じゃなければ ×、一の位から 右は 0 を かくよ。この 位は ${mk0==="0"?"一の位か その 右":"一の位より 左"} だよ。`,
+     items:[{t:mk0,col:sk.i,row:0,cls:mk0==="0"?"w":"gy"}]});
+   });
+   push({type:"choice",sub:"can",opts:["われる","われない"],ans:"われる",chip:"たてる",hl:[{row:1,from:0,to:c.i}],
+    msg:`${c.cur} は ${N} で われる？ われない？`,hint:`${c.cur} は わる数 ${N} 以上 だから われるよ。`});
+  }
+  if(k>0){
+   push({type:"drop",ans:String(dg[c.i]),col:c.i,row:1+2*k,len:1,chip:"おろす",
+    msg:isExt?"0 を つけたして おろそう":`つぎの ${dg[c.i]} を おろそう`,hint:"上の 数を まっすぐ 下に おろすよ。",
+    hl:[{row:1,from:c.i,to:c.i}],items:[{t:String(dg[c.i]),col:c.i,row:1+2*k,cls:"w"}]});
+  }
+  const ms=[c.q-1,c.q,c.q+1].filter(m=>m>=1);
+  push({type:"q",ans:String(c.q),col:c.i,row:0,len:1,k,cur:c.cur,N,chip:"たてる",div:1,hl:[pc],
+   msg:`${N} が ${c.cur} の なかに なんこ はいる？`,
+   hint:c.q===0?`${N} × 1 = ${N} は ${c.cur} より 大きいから 0 だよ。`:(N>=10?"ひだりの「かけ算の ひっさん」で、どの 数なら ちょうど いいか ためしてみよう。":`${N} の だん： `+ms.map(m=>`${N}×${m}=${N*m}`).join("、")),
+   items:[{t:String(c.q),col:c.i,row:0,cls:"w"}]});
+  const nds=String(N).split("").reverse().map(Number),cys=[];{let cr=0;nds.forEach((d,p)=>{const v=d*c.q+cr;cr=Math.floor(v/10);if(p<nds.length-1&&cr>0)cys.push({p:p+1,c:cr})})}
+  const pslots=[];for(let p=0;p<ps.length;p++){pslots.push({t:"d",j:ps.length-1-p});const co=cys.find(o=>o.p===p+1);if(co)pslots.push({t:"m",col:c.i-p-1,row:2+2*k,ans:String(co.c)})}
+  push({type:"prod",slots:pslots,ans:ps,col:c.i,row:2+2*k,len:ps.length,pd:true,qv:c.q,chip:"かける",div:1,hl:[{row:0,from:c.i,to:c.i}],
+   msg:`${N} × ${c.q} ${"は"}？`+(cys.length?" くり上がりは 小さい ○ に かいても いいよ。":""),hint:c.q===0?"0 を かけても 0 だよ。":(N>=10?"「かけ算の ひっさん」を つかおう。一の位から じゅんばんに かけるよ。くり上がった 数は、となりの 数の 右上の 小さい ○ に かいて おくと わすれないよ。○ を タップすると かけるよ。":`${N} を ${c.q} かい たすと いくつ？ □ は 一の位からでも うめられるよ。`),
+   items:[{t:ps,col:c.i,row:2+2*k,cls:"w"},{k:"l",col:c.i,len:ps.length,row:2+2*k},...cys.map(o=>({k:"cy",col:c.i-o.p,row:2+2*k,t:String(o.c),mk:`${c.i-o.p},${2+2*k}`}))]});
+  const it=[{t:rs,col:c.i,row:3+2*k,cls:"w"}];
+  if(cy[k+1]&&cy[k+1].i>=n0)it.push({t:"0",col:cy[k+1].i,row:1,cls:"ext"});
+  if(k===cy.length-1&&md==="rem")it.push({k:"ar",t:"･･･ "+c.r});
+  const topRow=k===0?1:1+2*k,Ts=String(c.cur).split("").reverse().map(Number),Bs=ps.split("").reverse().map(Number),eff=Ts.slice(),bAt=[];
+  for(let p=0;p<Ts.length;p++){if(eff[p]<(Bs[p]||0)){eff[p]+=10;eff[p+1]-=1;bAt.push(p)}}
+  const rslots=[],usedQ=new Set();
+  for(let p=0;p<Ts.length;p++){
+   if(bAt.includes(p)){
+    const ch=[p+1];let q=p+1;while(Ts[q]===0&&bAt.includes(q)){q++;ch.push(q)}
+    ch.reverse().forEach(q=>{if(usedQ.has(q))return;usedQ.add(q);
+     rslots.push({t:"m",col:c.i-q,row:topRow,ans:String(eff[q]),sl:1});
+     it.push({k:"cy",col:c.i-q,row:topRow,t:String(eff[q]),mk:`${c.i-q},${topRow}`},{k:"sl",col:c.i-q,row:topRow,mk:`${c.i-q},${topRow}`});});
+   }
+   if(p<rs.length)rslots.push({t:"d",j:rs.length-1-p});
+  }
+  push({type:"rem",slots:rslots,ans:rs,col:c.i,row:3+2*k,len:rs.length,pd:true,chip:"ひく",hl:[pc,{row:2+2*k,from:c.i-ps.length+1,to:c.i}],
+   msg:`${c.cur} − ${c.prod} ${"は"}？`+(bAt.length?" くり下がりは 小さい ○ に かいても いいよ。":""),
+   hint:bAt.length?"ひけない 位は、となりの 位から 1 かりてくるよ。かした 位の 数に ／ を ひいて、1 へった 数を 右上の 小さい ○ に かいて おこう。○ を タップすると かけるよ。":`${c.cur} から ${c.prod} を ひくよ。ひいた あとの 数は、わる数 ${N} より 小さく なるはずだよ。`,items:it});
+ });
+ if(dd)push(dd);
+ if(fin)push(fin);if(fin2)push(fin2);if(fin3)push(fin3);
+ return {S,cs,dp,n0,N,dg,cy,qs,kb,ex,md,rr,rmv,minis:new Set(),R:2+2*cy.length};
+}
+
+/* ---------- 音・読み上げ ---------- */
+
+// 読み上げと効果音。mutedは🔊ボタンのON/OFF
+let muted=false,ac=null;
+function actx(){ac=ac||new (window.AudioContext||window.webkitAudioContext)();return ac}
+
+// 文を声で読む。記号や読みまちがえやすい言葉は、読みやすい言葉におきかえてから読ませる
+// (÷→わる、×→かける、わられる数→わられるかず、文の終わりの「は」→「わ」 など)
+function say(t){
+ if(muted||demoPopup||!window.speechSynthesis)return;
+ speechSynthesis.cancel();
+ const s=t.replace(/たされる数/g,"たされるかず").replace(/たす数/g,"たすかず").replace(/ひかれる数/g,"ひかれるかず").replace(/ひく数/g,"ひくかず").replace(/かけられる数/g,"かけられるかず").replace(/かける数/g,"かけるかず").replace(/わられる数/g,"わられるかず").replace(/わる数/g,"わるかず").replace(/なんこ はいる/g,"なんこ ハイル").replace(/÷/g,"わる").replace(/×/g,"かける").replace(/−/g,"ひく").replace(/\+/g,"たす").replace(/[=＝]/g,"は").replace(/≒/g,"やく").replace(/･･･/g,"あまり").replace(/□/g,"しかく")
+  .replace(/は(?=[\s？。、！]|$)/g,"わ");
+ const u=new SpeechSynthesisUtterance(s);
+ u.lang="ja-JP";u.rate=.9;speechSynthesis.speak(u);
+}
+
+// 簡単な電子音を鳴らす。ding=正解(ピンポン)、fanfare=1問とけた、boing=不正解(ぽよよん)
+function tone(list,type,vol){
+ try{const a=actx(),t=a.currentTime;
+  list.forEach(([fr,d,len])=>{
+   const o=a.createOscillator(),g=a.createGain();
+   o.type=type||"sine";o.frequency.value=fr;o.connect(g);g.connect(a.destination);
+   g.gain.setValueAtTime(.0001,t+d);g.gain.exponentialRampToValueAtTime(vol||.35,t+d+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d+len);
+   o.start(t+d);o.stop(t+d+len+.05);
+  });
+ }catch(e){}
+}
+const ding=()=>tone([[1319,0,.5],[1047,.17,.5]]);
+const fanfare=()=>tone([[784,0,.3],[1047,.14,.6]],"sine",.3);
+function boing(){
+ try{const a=actx(),t=a.currentTime,o=a.createOscillator(),g=a.createGain();
+  o.type="sine";const fq=o.frequency;
+  fq.setValueAtTime(220,t);fq.exponentialRampToValueAtTime(640,t+.12);fq.exponentialRampToValueAtTime(260,t+.3);fq.exponentialRampToValueAtTime(480,t+.45);fq.exponentialRampToValueAtTime(300,t+.62);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.03);g.gain.exponentialRampToValueAtTime(.0001,t+.68);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+.72);
+ }catch(e){}
+}
+
+// 右上に⭐や？を一瞬だけ大きく出す
+function pop(ch,col){
+ const p=$("pop");p.textContent=ch;p.style.color=col||"";
+ p.style.top=(document.querySelector("header").getBoundingClientRect().bottom+8)+"px";
+ p.classList.remove("show");void p.offsetWidth;p.classList.add("show");
+ setTimeout(()=>p.classList.remove("show"),950);
+}
+function toggleMute(){muted=!muted;$("mute").textContent=muted?"🔇":"🔊";if(muted&&window.speechSynthesis)speechSynthesis.cancel()}
+function reread(){
+ if(!pl||!pl.S[si])return;
+ const s=pl.S[si],w=muted;muted=false;say((s.pre||"")+s.msg+(hintOn&&s.hint?" ヒント。"+(curHint||s.hint):""));muted=w;
+}
+
+/* ---------- できたね画面 ---------- */
+
+// 「できた！」カードに出すほめことば(ランダム)
+const YW=["やったね！","できた！","すばらしい！","かんぺき！","すごい！","てんさい！","いいね！","さいこう！"];
+const YE=["🎉","🌈","🦄","🐰","🐻","🐼","🌟","🍭","🐥","🎈"];
+function showYay(btns){
+ const y=$("yay");
+ $("yw").textContent=pick(YW);
+ $("yq").textContent=pl.lab+"は "+pl.qs;
+ $("ybtn").replaceChildren(...btns.map(x=>{const e=document.createElement("button");e.textContent=x.t;e.onclick=()=>{hideYay();x.f()};return e}),
+  Object.assign(document.createElement("button"),{textContent:"ひっさんを みる",className:"sub",onclick:hideYay}));
+ const c=$("ycard");c.style.animation="none";void c.offsetWidth;c.style.animation="";
+ y.style.display="flex";fanfare();
+}
+function hideYay(){$("yay").style.display="none"}
+
+/* ---------- 進行・画面切り替え ---------- */
+
+// いまの状態をおぼえておく変数
+// P=いまの問題、pl=その手順リスト、si=いま何ステップ目か、lv=レベル番号、rd=10問ぶんの問題と結果
+// UL=グループごとにどこまで合格したか、entry/sv=入力中の答え、foc=いま入力する□、miss=この問題のまちがい回数
+let P,pl,lv=0,rd,UL={div:0,mul:0,add:0,sub:0},menuG="div",si=0,entry="",busy=false,hintOn=false,miss=0,ghostEl=null,suppress=false,drag=null;
+let demoOn=false,demoTok=0,adminOn=false,curHint="",trial=null,sv=[],stv=[],foc=-1,pdlast=-1,mp=null;
+const GMAX=g=>LV.filter(l=>l.grp===g).length-1;
+const UKEY={div:"hissan.unlocked",mul:"hissan.unlockedM",add:"hissan.unlockedA",sub:"hissan.unlockedS"};
+try{for(const g in UKEY)UL[g]=Math.min(GMAX(g),+localStorage.getItem(UKEY[g])||0)}catch(e){}
+
+// 合格状況はこの端末のブラウザにだけ保存する(わり算・かけ算べつべつ)
+const saveU=()=>{try{for(const g in UKEY)localStorage.setItem(UKEY[g],UL[g])}catch(e){}};
+const sl=ms=>new Promise(r=>setTimeout(r,ms));
+function show(id){document.querySelectorAll(".ov").forEach(o=>o.style.display="none");$(id).style.display="block";if(id==="admin")$("adstat").textContent="いま ひらいている レベル："+["add","sub","mul","div"].map(g=>`${GN[g]} 1〜${UL[g]+1}`).join("、")}
+function closeAll(){document.querySelectorAll(".ov").forEach(o=>o.style.display="none")}
+
+// メニューを開く。選んでいるタブ(わり算/かけ算)のレベルカードを並べ、最後に「じぶんで数をいれて」カードを置く
+function openMenu(){
+ demoTok++;demoOn=false;busy=false;hideYay();closeMul();
+ const g=$("mgrid");g.replaceChildren();
+ $("mtitle").textContent=`どの ${GN[menuG]}を れんしゅうする？`;
+ LV.forEach((l,n)=>{
+  if(l.grp!==menuG)return;
+  const u=UL[l.grp],open=adminOn||l.k<=u,b=document.createElement("button");b.disabled=!open;
+  b.innerHTML=`<b>${open?l.k+1:"🔒"}</b><span>${l.n}</span><small>${l.k<u?"★ クリアずみ":open?"▶ はじめる":"まえの レベルに ごうかくしよう"}</small>`;
+  b.onclick=()=>startLevel(n);g.appendChild(b);
+ });
+ const fb=document.createElement("button");fb.className="free";
+ fb.innerHTML=`<b>✏️</b><span>じぶんで 数を いれて れんしゅう</span><small>しゅくだいの もんだいにも つかえるよ！</small>`;
+ fb.onclick=openFree;g.appendChild(fb);
+ show("menu");
+}
+function setGroup(g){menuG=g;openMenu()}
+// トップページ(4つの計算をえらぶ)を開く
+function openHome(){demoTok++;demoOn=false;busy=false;hideYay();closeMul();if(window.speechSynthesis)speechSynthesis.cancel();show("home")}
+
+// じゆうれんしゅう画面：わり算/かけ算の切りかえで、ラベルや「こたえかた」の表示を変える
+function freeOp(){const o=$("fop").value,d=o==="div";
+ const L={add:["たされる数 (+ の まえ)","たす数 (+ の うしろ)"],sub:["ひかれる数 (− の まえ)","ひく数 (− の うしろ)"],mul:["かけられる数 (× の まえ)","かける数 (× の うしろ)"],div:["わられる数 (÷ の まえ)","わる数 (÷ の うしろ)"]}[o];
+ $("lfa").textContent=L[0];$("lfb").textContent=L[1];
+ $("lfm").style.display=$("fm").style.display=d?"":"none";$("fb").placeholder={add:"れい 2.75",sub:"れい 1.8",mul:"れい 1.3",div:"れい 0.05"}[o];}
+function openFree(){$("ferr").textContent="";$("fop").value=menuG;freeOp();show("free")}
+
+// 管理者用：全レベルをひらく／進み具合をリセットする(子どもの端末で試したあとは、リセットでもとにもどす)
+function adminUnlock(){adminOn=true;for(const g in UL)UL[g]=GMAX(g);saveU();$("adminbar").style.display="flex";show("admin")}
+function adminReset(){for(const g in UL)UL[g]=0;adminOn=false;saveU();$("adminbar").style.display="none";show("admin")}
+
+// 管理者用：いまの問題を正解あつかいでとばす／10問ぜんぶ正解あつかいにして合格させる
+function adminSkip(){if(!rd||rd.free||demoOn||!pl)return;busy=false;hideYay();rd.res.push(true);dots();nextP()}
+function adminPass(){if(!rd||rd.free||demoOn)return;hideYay();rd.res=Array(10).fill(true);result()}
+
+// レベルを始める：10問作って1問目を出し、「次回からは表示しない」でなければ、やり方ポップアップを開く
+function startLevel(n,noDemo){
+ lv=n;menuG=LV[n].grp;rd={ps:genRound(n),i:0,res:[]};closeAll();
+ loadProb();
+ if(!noDemo&&!noDemoList().includes(n))openDemo(n);
+}
+function dots(){$("dots").innerHTML=rd.free?"":Array.from({length:rd.ps.length},(_,j)=>`<i class="${j<rd.res.length?(rd.res[j]?"ok":"ng"):j===rd.i?"cur":""}"></i>`).join("")}
+
+// 盤面の上に横式を作る。数の部分はつまんで筆算の□へ運べる
+function buildExpr(){
+ $("expr").innerHTML=`<span class="tok" data-w="a">${P.a}</span><span>${{mul:"×",add:"+",sub:"−"}[P.op]||"÷"}</span><span class="tok" data-w="b">${P.b}</span><span>＝</span>`;
+ $("expr").querySelectorAll(".tok").forEach(t=>{
+  const w=t.dataset.w;
+  t.addEventListener("pointerdown",e=>beginDrag(e,"tok",w,P[w]));
+  t.addEventListener("click",()=>{if(!suppress)submit("tok",w)});
+ });
+}
+
+// 問題を1つ読みこみ、手順の最初から始める
+function loadProb(){
+ hideYay();closeMul();
+ P=rd.ps[rd.i];pl=plan(P);si=0;entry="";busy=false;hintOn=false;miss=0;demoOn=false;
+ $("done").style.display="none";$("cards").style.display="flex";
+ $("lvname").textContent=rd.free?"✏️ じゆうれんしゅう":`${lvTitle(lv)}　${rd.i+1}/10`;dots();
+ $("adbg").textContent=adminOn?`  ${P.a} ÷ ${P.b} ${P.mode||""}`:"";
+ buildExpr();render();
+}
+
+// やり方の自動再生：見本の問題を、正しい答えを少しずつ入れながら最後まで進める
+// (ポップアップのiframeの中で動く。おわったら親の画面へ「おわった」と知らせて閉じてもらう)
+async function runDemo(n){
+ const tok=++demoTok;demoOn=true;busy=true;hideYay();closeMul();
+ P=LV[n].demo;pl=plan(P);si=0;entry="";hintOn=false;miss=0;
+ $("done").style.display="none";$("cards").style.display="flex";
+ $("lvname").textContent=`${lvTitle(n)}　🎬 やり方`;$("dots").innerHTML="";
+ $("adbg").textContent="";buildExpr();
+ while(si<pl.S.length){
+  if(tok!==demoTok)return;
+  const s=pl.S[si];render();
+  await sl(1400+(s.pre||"").length*70+s.msg.length*90);
+  if(tok!==demoTok)return;
+  if(s.type==="choice")await sl(600);
+  else if(s.type==="strike"){for(let k=0;k<s.tg.length;k++){stv[k]=1;renderBoard();await sl(500)}}
+  else if(s.pd){for(let i=0;i<s.slots.length;i++){const o=s.slots[i];sv[i]=o.t==="d"?s.ans[o.j]:o.ans;foc=i+1;renderBoard();await sl(550)}}
+  else if(s.type!=="place"&&s.type!=="see")for(const ch of s.ans){entry+=ch;renderBoard();await sl(550)}
+  await sl(500);
+  if(tok!==demoTok)return;
+  keepMinis();si++;entry="";
+ }
+ if(tok!==demoTok)return;
+ chips();renderBoard();
+ $("bmsg").textContent=`できあがり！ ${pl.lab}は ${pl.qs}。じゃあ、やってみよう！`;say(`できあがり！ ${pl.lab}は ${pl.qs}。じゃあ、やってみよう！`);
+ await sl(3200);
+ if(tok!==demoTok)return;
+ if(window.DEMO_ONLY!=null){parent.postMessage({type:"hissanDemoDone"},"*");return}
+ loadProb();
+}
+function skipDemo(){demoTok++;demoOn=false;busy=false;loadProb()}
+function showDone(m,btns){
+ $("cards").style.display="none";$("done").style.display="flex";$("dmsg").textContent=m;
+ $("dbtn").replaceChildren(...btns.map(x=>{const e=document.createElement("button");e.textContent=x.t;e.onclick=x.f;e.style.marginLeft="8px";return e}));
+}
+function nextP(){rd.i++;if(rd.i>=rd.ps.length)result();else loadProb()}
+
+// 10問おわったときの結果。8問以上(まちがい2回以内の問題)で合格し、同じグループの次のレベルがひらく
+function result(){
+ const n=rd.res.filter(Boolean).length,b=[{t:"もういちど",f:()=>startLevel(lv,true)},{t:"メニュー",f:openMenu}];let m;
+ if(n>=8){
+  const L=LV[lv],nx=LV[lv+1];
+  if(nx&&nx.grp===L.grp){
+   if(UL[L.grp]<L.k+1){UL[L.grp]=L.k+1;saveU()}
+   m=`ごうかく！ ${n}/10　レベル${L.k+2}に すすめるよ`;
+   b.unshift({t:`レベル${L.k+2}へ ▶`,f:()=>startLevel(lv+1)});
+  }else m=`ごうかく！ ${n}/10　ぜんぶ クリア！`;
+ }else m=`${n}/10　あと すこし！ 8もん できたら ごうかく`;
+ showDone(m,b);say(m);
+}
+
+// じゆうれんしゅう：入力された数をチェックしてから、その1問だけで始める
+function startFree(){
+ const a=$("fa").value.trim(),b=$("fb").value.trim(),v=$("fm").value.split(":"),md=v[0],x=v[1]||"";
+ const ok=s=>/^\d{1,4}(\.\d{1,3})?$/.test(s),err=m=>{$("ferr").textContent=m};
+ if(!ok(a)||!ok(b)||(($("fop").value==="mul"||$("fop").value==="div")&&(+b===0||+a===0)))return err("数字を ただしく いれてね (れい 12.6 と 0.05)");
+ if($("fop").value==="add"||$("fop").value==="sub"){
+  const op=$("fop").value;
+  if(a.replace(".","").length>5||b.replace(".","").length>5)return err("5けた までに してね");
+  if(op==="sub"&&+a<+b)return err("ひかれる数(まえの 数)の ほうを 大きく してね");
+  const p={op,a,b};lv=-1;rd={ps:[p],i:0,res:[],free:true};closeAll();loadProb();return;
+ }
+ if($("fop").value==="mul"){
+  if(a.replace(".","").length>4||b.replace(".","").length>3)return err("かけ算は 4けた × 3けた までに してね");
+  const p={op:"mul",a,b};lv=-1;rd={ps:[p],i:0,res:[],free:true};closeAll();loadProb();return;
+ }
+ if(md==="rem"&&(a.includes(".")||b.includes(".")))return err("「あまり (整数)」は 整数どうしで えらんでね");
+ if(md==="remI"&&(!a.includes(".")||+a<+b))return err("「小数の あまり」は、わられる数が 小数で、わる数より 大きい ときに えらんでね");
+ const p={a,b,mode:md==="exact"?undefined:md,d:x&&x[0]!=="s"?+x:undefined,sig:x&&x[0]==="s"?+x.slice(1):undefined};
+ try{const t=plan(p);if(t.R>13||t.dg.length>9)throw 0}catch(e){return err("この 問題は むずかしすぎるみたい。ちいさい 数で ためしてね")}
+ lv=-1;rd={ps:[p],i:0,res:[],free:true};closeAll();loadProb();
+}
+function chips(){
+ const s=pl.S[si];
+ $("steps").innerHTML=pl.chips.map(n=>`<span class="step${s&&s.chip===n?" active":""}">${n}</span>`).join("");
+}
+
+// ステップがかわるたびに呼ぶ：手順チップ・盤面・吹き出しを書きなおし、指示を読み上げる
+function render(){
+ const s=pl.S[si];curHint="";trial=null;
+ if(s.type==="strike")stv=[];
+ if(s.pd){sv=Array(s.slots.length).fill("");foc=s.slots.findIndex(o=>o.t==="d");pdlast=-1}
+ if(mp){if(pl.N>=10&&(s.type==="q"||s.type==="prod"))mulSet(s.qv!=null?s.qv:mp.m);else closeMul()}
+ chips();
+ document.querySelectorAll(".tok").forEach(t=>t.classList.toggle("live",s.type==="place"&&!demoOn));
+ renderBoard();updBubble();
+ say((s.pre||"")+s.msg);
+}
+function adv(){si++;render()}
+
+/* ---------- 盤面 ---------- */
+
+// 盤面の大きさの決まり。CW=1けたの横はば、RH=1行の高さ。X(列)・Y(行)でSVG上の位置になる
+const CW=54,X0=190,RH=58,PAD=14,RP=34,xb=X0-CW/2-6;
+const X=c=>X0+c*CW,Y=r=>PAD+RH/2+r*RH;
+const Te=(x,y,t,st="",c="")=>`<text class="num ${c}" x="${x}" y="${y}" style="${st}">${t}</text>`;
+const rt=(t,col,row,c)=>[...t].map((ch,j)=>Te(X(col-t.length+1+j),Y(row),ch,"",c)).join("");
+
+// 数字に引く斜線、上から下への矢印
+const slash=(x,y)=>`<line x1="${x-13}" y1="${y+15}" x2="${x+13}" y2="${y-12}" stroke="#d9891c" stroke-width="3" stroke-linecap="round"/>`;
+const arrow=(x,y1,y2)=>`<path d="M${x} ${y1} V${y2} M${x-11} ${y2-13} L${x} ${y2} L${x+11} ${y2-13}" stroke="#f2a33a" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+function rect(row,from,to,q){return `<rect class="${q?"hq":"hl"}" x="${X(from)-CW/2+2}" y="${Y(row)-27}" width="${(to-from+1)*CW-4}" height="54" rx="10"/>`}
+
+// わり算で、いまのステップの答えの□をどこに出すか
+function boxPx(s){
+ if(s.type==="place"){const w=s.ans.replace(".","").length*RP+28;return s.which==="b"?{x:xb-12-w,y:Y(1)-27,w,h:54}:{x:xb+14,y:Y(1)-27,w,h:54}}
+ if(s.type==="shift")return{x:xb-72,y:Y(0)-27,w:60,h:54};
+ if(s.type==="point")return{x:X(pl.dp)-CW/2-18,y:Y(0)-27,w:36,h:54};
+ if(s.type==="rpt")return{x:X(pl.dp-pl.kb)-CW/2-18,y:Y(pl.rr)-27,w:36,h:54};
+ if(s.type==="ddec")return{x:X(pl.dp)-CW/2+2,y:Y(pl.rr)-27,w:(pl.n0-pl.dp)*CW-4,h:54};
+ if(s.type==="fin"||s.type==="round")return{x:X(pl.cy[pl.cy.length-1].i)+CW*.55,y:Y(0)-27,w:s.ans.length*34+20,h:54};
+ return{x:X(s.col-s.len+1)-CW/2+2,y:Y(s.row)-27,w:s.len*CW-4,h:54};
+}
+
+// わり算で、筆算に入れたばかりの数を書く(小数点の移動の矢印も)
+function rawNum(str,x,right,sh){
+ const ds=str.replace(".",""),p=str.includes(".")?str.indexOf("."):ds.length,k=sh?pl.kb:0,nb=p+k,len=Math.max(ds.length,nb);
+ const x0=right?x-len*RP:x,y=Y(1),bx=b=>x0+b*RP;
+ let h="";
+ for(let j=0;j<len;j++)h+=Te(x0+(j+.5)*RP,y,j<ds.length?ds[j]:"0","font-size:40px",j<ds.length?"":"ext");
+ if(sh){
+  h+=`<circle cx="${bx(p)}" cy="${y+14}" r="6" fill="none" stroke="#9aa5b4" stroke-width="2"/>`;
+  if(k){const a=bx(p),b2=bx(nb),m=y-34;h+=`<path d="M${a} ${m} Q${(a+b2)/2} ${m-32} ${b2-2} ${m}" fill="none" stroke="#f2a33a" stroke-width="4" marker-end="url(#ah)"/>`}
+ }
+ if((str.includes(".")||sh)&&nb<len)h+=`<circle cx="${bx(nb)}" cy="${y+14}" r="5" fill="${sh?"#f2a33a":"#203047"}"/>`;
+ return h;
+}
+
+// かけ算の盤面を書く。列は右はし(一の位)から左へ数える。
+// うすい縦の破線は位の区切り。「かける」ステップでは、いまかける2つの数字を黄色でペアにして示す。
+// かけ算の段のくり上がりは、その段がおわると斜線で消す(たし算でまちがえないように)。
+function mRender(){
+ const s=pl.S[si],done=pl.S.slice(0,si),it=done.flatMap(x=>x.items||[]);
+ const XR=pl.W*CW+24,XM=c=>XR-c*CW,YM=r=>PAD+RH/2+r*RH;
+ $("svg").setAttribute("viewBox",`0 0 ${XR+CW/2+24} ${PAD*2+(pl.Rf+1)*RH+8}`);
+ const rtm=(t,col,row,c)=>[...t].map((ch,j)=>Te(XM(col+t.length-1-j),YM(row),ch,"",c)).join("");
+ const dotX=d=>XM(d)+CW/2;
+ let h="";
+ for(let c=0;c<pl.W-1;c++){const x=XM(c)-CW/2;h+=`<line x1="${x}" x2="${x}" y1="${YM(0)-28}" y2="${YM(pl.Rf)+28}" stroke="#d6e6dc" stroke-width="1.5" stroke-dasharray="4 6"/>`}
+ let pairTxt="";
+ if(s&&s.type==="asc"){
+  const o=s.slots[foc];
+  if(o&&o.t==="d"){
+   const c=s.len-1-o.j,t=s.td[c],b=s.bd[c];
+   if(t!=null)h+=`<rect class="hl" x="${XM(c)-CW/2+2}" y="${YM(0)-27}" width="${CW-4}" height="54" rx="10"/>`;
+   if(b!=null)h+=`<rect class="hl" x="${XM(c)-CW/2+2}" y="${YM(1)-27}" width="${CW-4}" height="54" rx="10"/>`;
+   const xs=[t,b].filter(v=>v!=null);
+   pairTxt=!xs.length?"のこった くり上がりを かこう":`いまは ${xs.join(s.op==="add"?" + ":" − ")}`+(s.op==="add"&&s.cin.includes(c)?"（くり上がりの 1も たすよ）":"");
+  }
+ }
+ if(s&&s.type==="mul"){
+  let q=-1;const o=s.slots[foc];
+  if(o)q=o.t==="d"?s.len-1-o.j:o.col-s.col-1;
+  if(q>=0){
+   const qa=Math.min(q,s.ai.length-1),ax=XM(qa),bx=XM(s.col);
+   h+=`<rect class="hl" x="${ax-CW/2+2}" y="${YM(0)-27}" width="${CW-4}" height="54" rx="10"/><rect class="hl" x="${bx-CW/2+2}" y="${YM(1)-27}" width="${CW-4}" height="54" rx="10"/>`;
+   h+=`<path d="M${ax} ${YM(0)+24} L${bx} ${YM(1)-24}" stroke="#f2a33a" stroke-width="3" stroke-dasharray="5 5" stroke-linecap="round"/>`;
+   const ad=s.ai[s.ai.length-1-qa];
+   pairTxt=q>=s.ai.length?"のこった くり上がりを かこう":`いまは ${ad} × ${s.md}`+(s.cyq.includes(q)?"（くり上がりも たすよ）":"");
+  }
+ }
+ $("bpair").textContent=pairTxt;$("bpair").style.display=pairTxt?"block":"none";
+ if(s)(s.hl||[]).forEach(r=>h+=`<rect class="hl" x="${XM(r.to)-CW/2+2}" y="${YM(r.row)-27}" width="${(r.to-r.from+1)*CW-4}" height="54" rx="10"/>`);
+ const pa=done.some(x=>x.which==="a"),pb=done.some(x=>x.which==="b");
+ if(pa){h+=rtm(pl.As,pl.offA||0,0);if(pl.padA)h+=rtm("0".repeat(pl.padA),0,0,"ext");if(pl.dA||pl.padA)h+=`<circle cx="${dotX(pl.dA+(pl.offA||0))}" cy="${YM(0)+16}" r="5" fill="#1e3a2f"/>`}
+ if(pb){h+=rtm(pl.Bs,pl.offB||0,1);if(pl.dB)h+=`<circle cx="${dotX(pl.dB+(pl.offB||0))}" cy="${YM(1)+16}" r="5" fill="#1e3a2f"/>`}
+ h+=Te(XM(pl.Lw),YM(1),pl.sign||"×","","gy");
+ h+=`<line x1="${XM(pl.W-1)-CW/2}" x2="${XM(0)+CW/2}" y1="${YM(1)+RH/2-2}" y2="${YM(1)+RH/2-2}" stroke="#1e3a2f" stroke-width="4"/>`;
+ it.forEach(i=>{
+  if(i.mk&&!pl.minis.has(i.mk))return;
+  if(i.k==="ln")h+=`<line x1="${XM(pl.W-1)-CW/2}" x2="${XM(0)+CW/2}" y1="${YM(i.row)-RH/2+2}" y2="${YM(i.row)-RH/2+2}" stroke="#1e3a2f" stroke-width="4"/>`;
+  else if(i.k==="cy"){const cx=XM(i.col)+CW/2-11,cy0=YM(i.row)-15;h+=Te(cx,cy0,i.t,"","cyc");if(i.sx)h+=`<line x1="${cx-8}" y1="${cy0+9}" x2="${cx+8}" y2="${cy0-9}" stroke="#d9891c" stroke-width="2.5" stroke-linecap="round"/>`}
+  else if(i.k==="mdot")h+=`<circle cx="${dotX(pl.dec)}" cy="${YM(pl.Rf)+16}" r="6" fill="#1e9e6a"/>`;
+  else if(i.k==="sl")h+=slash(XM(i.col),YM(i.row));
+  else if(i.k==="slp")h+=`<line x1="${dotX(pl.dec)-9}" y1="${YM(pl.Rf)+25}" x2="${dotX(pl.dec)+9}" y2="${YM(pl.Rf)+7}" stroke="#d9891c" stroke-width="3" stroke-linecap="round"/>`;
+  else if(!i.k)h+=rtm(i.t,i.col,i.row,i.cls);
+ });
+ if(s&&s.type==="strike")s.tg.forEach((t,k)=>{
+  if(stv[k])h+=slash(XM(t.col),YM(t.row));
+  else h+=`<circle cx="${XM(t.col)}" cy="${YM(t.row)}" r="25" fill="none" stroke="#f2a33a" stroke-width="3" stroke-dasharray="6 5"/><rect data-st="${k}" x="${XM(t.col)-CW/2}" y="${YM(t.row)-27}" width="${CW}" height="54" fill="transparent" style="cursor:pointer"/>`;
+ });
+ if(s&&s.type==="place"){
+  const n=s.ans.replace(".","").length,row=s.which==="a"?0:1,off=(row?pl.offB:pl.offA)||0;
+  h+=`<rect id="gh" class="ghost" x="${XM(off+n-1)-CW/2+2}" y="${YM(row)-27}" width="${n*CW-4}" height="54" rx="10"/>`;
+ }
+ if(s&&s.type==="mpt"){
+  h+=`<rect id="gh" class="ghost" x="${dotX(pl.dec)-18}" y="${YM(pl.Rf)-27}" width="36" height="54" rx="10"/>`;
+  if(entry)h+=`<circle cx="${dotX(pl.dec)}" cy="${YM(pl.Rf)+16}" r="6" fill="#1e9e6a"/>`;
+ }
+ if(s&&s.pd){
+  const x0=XM(s.col+s.len-1)-CW/2+2;
+  h+=`<rect id="gh" x="${x0}" y="${YM(s.row)-27}" width="${s.len*CW-4}" height="54" fill="transparent"/>`;
+  const mini=[];
+  s.slots.forEach((o,i)=>{
+   const v=sv[i],f=i===foc;
+   if(o.t==="d"){
+    const cx=XM(s.col+s.len-1-o.j),bx=cx-CW/2+3,by=YM(s.row)-27;
+    h+=`<rect class="ghost" style="${f?"fill:#ffe9c4;fill-opacity:1;stroke-dasharray:none":""}" x="${bx}" y="${by}" width="${CW-6}" height="54" rx="8"/>`;
+    if(v)h+=Te(cx,YM(s.row),v,"","w");
+    h+=`<rect data-s="${i}" x="${bx}" y="${by}" width="${CW-6}" height="54" fill="transparent"/>`;
+   }else mini.push([o,i,v,f]);
+  });
+  mini.forEach(([o,i,v,f])=>{
+   const cx=XM(o.col)+CW/2-11,cy0=YM(o.row)-15;
+   if(o.sl&&v)h+=slash(XM(o.col),YM(o.row));
+   h+=`<circle cx="${cx}" cy="${cy0}" r="12" fill="${f?"#ffe9c4":"#fff"}" stroke="#f2a33a" stroke-width="2" ${f?"":'stroke-dasharray="3 3"'}/>`;
+   if(v)h+=Te(cx,cy0,v,"","cyc");
+   h+=`<circle data-s="${i}" cx="${cx}" cy="${cy0}" r="17" fill="transparent"/>`;
+  });
+ }
+ $("svg").innerHTML=h;ghostEl=$("gh");
+}
+
+// わり算の盤面を書く(かけ算なら mRender へ)。
+// わる数が小数のときは、元の小数点を○、うつした小数点を●で示し、先頭の0は斜線で消す。
+// あまりを出すわり算では、商をたてる最後の位に「ここまで」の線を引く。
+function renderBoard(){
+ if(pl.kind!=="div")return mRender();
+ $("bpair").style.display="none";
+ const s=pl.S[si],done=pl.S.slice(0,si),cols=si>=pl.cs,see=s&&s.type==="see";
+ const it=done.flatMap(x=>x.items||[]);
+ const has=k=>it.some(i=>i.k===k);
+ const cc=pl.n0+it.filter(i=>i.cls==="ext"&&i.row===1).length;
+ $("svg").setAttribute("viewBox",`0 0 ${X0+(pl.dg.length+pl.ex)*CW+12} ${PAD*2+pl.R*RH}`);
+ const dot=(y,c)=>`<circle cx="${X(pl.dp)-CW/2}" cy="${y+16}" r="5" fill="${c}"/>`;
+ const dsA=P.a.replace(".",""),pA=P.a.includes(".")?P.a.indexOf("."):dsA.length;
+ const lenA=Math.max(dsA.length,pA+(see?pl.kb:0));
+ const xe=cols?X(cc-1)+CW/2+6:xb+24+lenA*RP+14;
+ let h=`<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f2a33a"/></marker></defs>`;
+ if(s){
+  (s.hl||[]).forEach(r=>h+=rect(r.row,r.from,r.to,r.q));
+  if(s.div){const w=(cols?P.b.replace(".","").length*RP:String(pl.N).length*30)+16;h+=`<rect class="hl" x="${xb-16-w+8}" y="${Y(1)-27}" width="${w}" height="54" rx="10"/>`}
+ }
+ h+=`<path d="M${xb} ${Y(1)+RH/2-2} V${Y(1)-RH/2+2} H${xe}" fill="none" stroke="#1e3a2f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+ if(cols&&s&&(pl.md==="rem"||pl.md==="remI")){
+  const oc=pl.dp-1,lx=X(oc)+CW/2;
+  h+=`<line x1="${lx+4}" y1="${Y(0)-28}" x2="${lx+4}" y2="${Y(1)+28}" stroke="#e0603a" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"/>`;
+  h+=`<text x="${lx+10}" y="${Y(0)-20}" style="font-size:15px;font-weight:800;fill:#e0603a;dominant-baseline:central">ここまで</text>`;
+ }
+ if(!cols){
+  if(done.some(x=>x.which==="b"))h+=rawNum(P.b,xb-18,true,see);
+  if(done.some(x=>x.which==="a"))h+=rawNum(P.a,xb+24,false,see);
+ }else{
+  const bd=P.b.replace(".",""),bp=P.b.includes(".")?P.b.indexOf("."):bd.length,bx0=xb-16-bd.length*RP;
+  [...bd].forEach((d,j)=>{const x=bx0+(j+.5)*RP;h+=Te(x,Y(1),d);if(j<bd.length-1&&/^0+$/.test(bd.slice(0,j+1)))h+=slash(x,Y(1))});
+  if(pl.kb){h+=`<circle cx="${bx0+bp*RP}" cy="${Y(1)+16}" r="6" fill="none" stroke="#f2a33a" stroke-width="3"/><circle cx="${bx0+bd.length*RP}" cy="${Y(1)+16}" r="5" fill="#f2a33a"/>`}
+  pl.dg.slice(0,pl.n0).forEach((d,j)=>h+=Te(X(j),Y(1),d));
+  for(let j=0;j<pl.dp-1&&pl.dg[j]===0&&pl.kb>0;j++)h+=slash(X(j),Y(1));
+  if(pl.dp<pl.n0||has("ddot")||pl.kb>0)h+=dot(Y(1),pl.kb>0?"#f2a33a":"#203047");
+  if(pl.kb>0)h+=`<circle cx="${X(pl.dp-pl.kb)-CW/2}" cy="${Y(1)+16}" r="6" fill="none" stroke="#f2a33a" stroke-width="3"/>`;
+ }
+ it.forEach(i=>{
+  if(i.mk&&!pl.minis.has(i.mk))return;
+  if(i.k==="l")h+=`<line x1="${X(i.col-i.len+1)-CW/2+2}" x2="${X(i.col)+CW/2-2}" y1="${Y(i.row)+RH/2-3}" y2="${Y(i.row)+RH/2-3}" stroke="#1e3a2f" stroke-width="4"/>`;
+  else if(i.k==="qdot")h+=dot(Y(0),"#1764a2");
+  else if(i.k==="cy")h+=Te(X(i.col)+CW/2-11,Y(i.row)-15,i.t,"","cyc");
+  else if(i.k==="sl")h+=`<line x1="${X(i.col)-13}" y1="${Y(i.row)+15}" x2="${X(i.col)+13}" y2="${Y(i.row)-12}" stroke="#d9891c" stroke-width="3" stroke-linecap="round"/>`;
+  else if(i.k==="rdot")h+=`<circle cx="${X(pl.dp-pl.kb)-CW/2}" cy="${Y(pl.rr)+16}" r="5" fill="#1e9e6a"/>`;
+  else if(i.k==="ar")h+=Te(X(pl.cy[pl.cy.length-1].i)+CW*.6,Y(0),i.t,"text-anchor:start;font-size:26px","w");
+  else if(!i.k)h+=rt(i.t,i.col,i.row,i.cls);
+ });
+ if(trial&&s&&s.type==="q"){
+  h+=Te(X(s.col),Y(0),trial.q,"","tr")+rt(String(trial.pr),s.col,2+2*s.k,"tr");
+  h+=trial.df>=0?rt(String(trial.df),s.col,3+2*s.k,"tr"):Te(X(s.col),Y(3+2*s.k),"✕","","tr");
+ }
+ if(s&&s.type==="strike")s.tg.forEach((t,k)=>{
+  if(stv[k])h+=slash(X(t.col),Y(t.row));
+  else h+=`<circle cx="${X(t.col)}" cy="${Y(t.row)}" r="25" fill="none" stroke="#f2a33a" stroke-width="3" stroke-dasharray="6 5"/><rect data-st="${k}" x="${X(t.col)-CW/2}" y="${Y(t.row)-27}" width="${CW}" height="54" fill="transparent" style="cursor:pointer"/>`;
+ });
+ if(s&&s.type!=="see"&&s.type!=="strike"&&s.sub!=="can"&&s.sub!=="shift"){
+  const b=boxPx(s);
+  if(s.pd){
+   h+=`<rect id="gh" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="transparent"/>`;
+   const mini=[];
+   s.slots.forEach((o,i)=>{
+    const v=sv[i],f=i===foc;
+    if(o.t==="d"){
+     const bx=X(s.col-s.len+1+o.j)-CW/2+3;
+     h+=`<rect class="ghost" style="${f?"fill:#ffe9c4;fill-opacity:1;stroke-dasharray:none":""}" x="${bx}" y="${b.y}" width="${CW-6}" height="54" rx="8"/>`;
+     if(v)h+=Te(bx+CW/2-3,b.y+27,v,"","w");
+     h+=`<rect data-s="${i}" x="${bx}" y="${b.y}" width="${CW-6}" height="54" fill="transparent"/>`;
+    }else mini.push([o,i,v,f]);
+   });
+   mini.forEach(([o,i,v,f])=>{
+    const cx=X(o.col)+CW/2-11,cy0=Y(o.row)-15;
+    if(o.sl&&v)h+=`<line x1="${X(o.col)-13}" y1="${Y(o.row)+15}" x2="${X(o.col)+13}" y2="${Y(o.row)-12}" stroke="#d9891c" stroke-width="3" stroke-linecap="round"/>`;
+    h+=`<circle cx="${cx}" cy="${cy0}" r="12" fill="${f?"#ffe9c4":"#fff"}" stroke="#f2a33a" stroke-width="2" ${f?"":'stroke-dasharray="3 3"'}/>`;
+    if(v)h+=Te(cx,cy0,v,"","cyc");
+    h+=`<circle data-s="${i}" cx="${cx}" cy="${cy0}" r="17" fill="transparent"/>`;
+   });
+  }else{
+   h+=`<rect id="gh" class="ghost" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10"/>`;
+   if(!trial)[...entry].forEach((ch,j)=>h+=Te(b.x+(j+.5)*b.w/s.ans.length,b.y+27,ch,"","w"));
+  }
+  if(s.type==="drop"){
+   const x=X(s.col);
+   h+=arrow(x,Y(1)+30,Y(s.row)-31);
+   h+=`<rect id="hit" x="${x-CW/2}" y="${Y(1)-27}" width="${CW}" height="54" fill="transparent" style="cursor:grab"/>`;
+  }
+  if(s.type==="rpt"){
+   const px=X(pl.dp-pl.kb)-CW/2,py=Y(1)+16;
+   h+=arrow(px,Y(1)+30,Y(pl.rr)-30);
+   h+=`<circle cx="${px}" cy="${py}" r="9" fill="#f2a33a"><animate attributeName="r" values="7;12;7" dur="1.2s" repeatCount="indefinite"/></circle>`;
+   h+=`<circle id="hit" cx="${px}" cy="${py}" r="26" fill="transparent" style="cursor:grab"/>`;
+  }
+  if(s.type==="ddec"){
+   for(let c=pl.dp;c<pl.n0;c++){h+=arrow(X(c),Y(1)+30,Y(pl.rr)-31);if(!sv[c-pl.dp])h+=`<rect data-dh="${c-pl.dp}" x="${X(c)-CW/2}" y="${Y(1)-27}" width="${CW}" height="54" fill="transparent" style="cursor:grab"/>`}
+  }
+ }
+ $("svg").innerHTML=h;ghostEl=$("gh");
+}
+$("svg").addEventListener("pointerdown",e=>{
+ if(!pl)return;
+ if(e.target.id==="hit"){const s=pl.S[si];beginDrag(e,"card",s.ans,s.ans,true)}
+ else if(e.target.dataset&&e.target.dataset.st!==undefined&&!busy&&!demoOn){stv[+e.target.dataset.st]=1;renderBoard();if(pl.S[si].tg.every((_,k)=>stv[k]))right()}
+ else if(e.target.dataset&&e.target.dataset.dh!==undefined&&!busy&&!demoOn){const j=+e.target.dataset.dh,d=String(pl.dg[pl.dp+j]);foc=j;beginDrag(e,"card",d,d,true)}
+ else if(e.target.dataset&&e.target.dataset.s!==undefined&&!busy&&!demoOn){foc=+e.target.dataset.s;renderBoard()}
+});
+
+/* ---------- 左の吹き出し ---------- */
+
+// 左の吹き出し：指示・ヒント・選ぶボタン・つぎへボタンなどを、いまのステップに合わせて出す
+function updBubble(){
+ const s=pl.S[si];
+ $("bdemo").style.display=demoOn?"block":"none";
+ $("skipBtn").style.display=demoOn?"inline-block":"none";
+ if(!s){
+  $("bmsg").textContent="できたね！";$("bhint").style.display="none";$("choices").replaceChildren();
+  $("hintBtn").style.display="none";$("nextBtn").style.display="none";$("mulBtn").style.display="none";return;
+ }
+ $("bmsg").textContent=(s.pre||"")+s.msg;
+ const h=curHint||s.hint;
+ $("bhint").textContent="💡 "+h;$("bhint").style.display=(hintOn||curHint)&&h?"block":"none";
+ $("hintBtn").style.display=(hintOn||s.type==="see"||demoOn||!s.hint)?"none":"inline-block";
+ $("nextBtn").style.display=(s.type==="see"&&!demoOn)?"inline-block":"none";
+ $("mulBtn").style.display=(pl.N>=10&&(s.type==="q"||s.type==="prod")&&!demoOn)?"inline-block":"none";
+ $("choices").replaceChildren(...(s.type==="choice"?s.opts.map(o=>{
+  const b=document.createElement("button");b.textContent=o;
+  if(demoOn&&o===s.ans)b.className="pick";
+  b.onclick=()=>submit("choice",o);return b;
+ }):[]));
+}
+function showHint(){hintOn=true;updBubble();say(curHint||pl.S[si].hint)}
+function note(m){curHint=m;updBubble()}
+
+/* ---------- かけ算の ひっさん ポップアップ ---------- */
+
+// わり算用の「かけ算の筆算」小窓。答えは教えず、子どもが1けたずつ計算して入れる
+function openMul(){
+ const s=pl.S[si];mulSet(s&&s.qv!=null?s.qv:2);$("mulpop").style.display="block";
+}
+function closeMul(){mp=null;$("mulpop").style.display="none"}
+function mulSet(m){
+ const ds=String(pl.N).split("").map(Number).reverse(),cells=[];let c=0;
+ ds.forEach((d,p)=>{
+  const v=d*m+c,last=p===ds.length-1;
+  if(last){cells.push({k:"d",pos:p,ans:v%10});if(v>=10)cells.push({k:"d",pos:p+1,ans:Math.floor(v/10)})}
+  else{cells.push({k:"d",pos:p,ans:v%10});c=Math.floor(v/10);if(c>0)cells.push({k:"c",pos:p+1,ans:c})}
+ });
+ mp={m,cells,act:0,ds};renderMul();
+}
+function renderMul(){
+ const L=mp.ds.length,C=L+1;
+ const at=(k,pos)=>mp.cells.findIndex(c=>c.k===k&&c.pos===pos);
+ const cell=i=>{const c=mp.cells[i],cls=c.ok?"mc ok":i===mp.act?"mc in act":"mc in";return `<div class="${cls}${c.k==="c"?" cy":""}">${c.ok?c.ans:""}</div>`};
+ const blank='<div class="mc"></div>';
+ let h="",row=[];
+ for(let col=0;col<C;col++){const i=at("c",C-1-col);row.push(i>=0?cell(i):blank)}
+ h+=`<div class="mr">${row.join("")}</div>`;
+ row=[];for(let col=0;col<C;col++){const p=C-1-col;row.push(p<L?`<div class="mc">${mp.ds[p]}</div>`:blank)}
+ h+=`<div class="mr">${row.join("")}</div>`;
+ row=[];for(let col=0;col<C;col++){const p=C-1-col;row.push(col===0?`<div class="mc">×</div>`:p===0?`<div class="mc">${mp.m}</div>`:blank)}
+ h+=`<div class="mr">${row.join("")}</div><hr>`;
+ row=[];for(let col=0;col<C;col++){const i=at("d",C-1-col);row.push(i>=0?cell(i):blank)}
+ h+=`<div class="mr">${row.join("")}</div>`;
+ $("mgm").innerHTML=h;
+ $("mpick").innerHTML=[0,1,2,3,4,5,6,7,8,9].map(n=>`<button class="${n===mp.m?"sel":""}" onclick="mulSet(${n})">${n}</button>`).join("");
+ $("mres").textContent=mp.act>=mp.cells.length?`${pl.N} × ${mp.m} ＝ ${pl.N*mp.m}`:"";
+}
+function mulInput(v){
+ if(!mp||v==="."||mp.act>=mp.cells.length)return;
+ const c=mp.cells[mp.act];
+ if(+v===c.ans){c.ok=true;ding();mp.act++}else{boing();pop("？","#f2a33a")}
+ renderMul();
+}
+
+/* まどを ひっぱって うごかす */
+(()=>{
+ const box=$("mulpop"),bar=box.querySelector(".mh");let m=null;
+ bar.addEventListener("pointerdown",e=>{
+  if(e.target.closest("button"))return;
+  const r=box.getBoundingClientRect();
+  m={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};
+  bar.setPointerCapture(e.pointerId);e.preventDefault();
+ });
+ bar.addEventListener("pointermove",e=>{
+  if(!m||e.pointerId!==m.id)return;
+  const w=box.offsetWidth,h=box.offsetHeight;
+  const x=Math.min(Math.max(e.clientX-m.dx,0),innerWidth-w),y=Math.min(Math.max(e.clientY-m.dy,0),innerHeight-h);
+  box.style.left=x+"px";box.style.top=y+"px";box.style.right="auto";
+ });
+ const end=e=>{if(m&&e.pointerId===m.id)m=null};
+ bar.addEventListener("pointerup",end);bar.addEventListener("pointercancel",end);
+})();
+
+/* ---------- こたえあわせ ---------- */
+
+// 子どもが○に書いたくり上がり・くり下がりのうち、正しいものだけを完成した筆算に残す
+function keepMinis(){const s=pl.S[si];if(s&&s.pd)s.slots.forEach((o,k)=>{if(o.t==="m"&&sv[k]===o.ans)pl.minis.add(`${o.col},${o.row}`)})}
+
+// 答えを受け取る(数字カード・横式の数・選ぶボタン・けす)。
+// 1けたずつの□は、全部うまったら答え合わせ。まちがえた□だけ空にもどす。
+// 商をたてるときにまちがえたら、その数でかけて・ひいてみせて、大きすぎ/小さすぎに気づかせる。
+function submit(kind,val){
+ if(busy||demoOn||si>=pl.S.length)return;
+ const s=pl.S[si];
+ if(s.type==="see"||s.type==="strike")return;
+ if(val==="⌫"){
+  if(kind==="card"&&s.type!=="choice"&&s.type!=="place"){
+   trial=null;curHint="";
+   if(s.pd){
+    let i=pdlast>=0&&sv[pdlast]?pdlast:-1;
+    if(i<0)for(let k=sv.length-1;k>=0;k--)if(sv[k]){i=k;break}
+    if(i>=0){sv[i]="";foc=i;pdlast=-1}
+   }else entry=entry.slice(0,-1);
+   renderBoard();updBubble();
+  }
+  return;
+ }
+ if(s.type==="choice"){
+  if(kind!=="choice")return note("ひだりの ボタンで えらんでね");
+  return val===s.ans?right():bad();
+ }
+ if(kind==="choice")return;
+ if(s.type==="place"){
+  if(kind!=="tok")return note("よこしきの 数を ひっぱってね");
+  return val===s.which?right():bad();
+ }
+ if(kind==="tok")return note("その 数は もう つかったよ");
+ if(trial){trial=null;curHint="";entry=""}
+ if(s.pd){
+  if(val===".")return;
+  let i=foc;if(i<0||i>=sv.length)i=sv.indexOf("");
+  if(i<0)return;
+  sv[i]=val;pdlast=i;
+  const dI=s.slots.map((o,k)=>o.t==="d"?k:-1).filter(k=>k>=0);
+  let nf=dI.find(k=>k>i&&!sv[k]);if(nf===undefined)nf=dI.find(k=>!sv[k]);if(nf===undefined)nf=-1;
+  foc=nf;renderBoard();
+  if(dI.every(k=>sv[k])){
+   const dOk=dI.every(k=>sv[k]===s.ans[s.slots[k].j]);
+   if(dOk)right();
+   else{
+    const mm=s.slots.some((o,k)=>o.t==="m"&&sv[k]&&sv[k]!==o.ans);
+    s.slots.forEach((o,k)=>{if(o.t==="d"?sv[k]!==s.ans[o.j]:(sv[k]&&sv[k]!==o.ans))sv[k]=""});
+    foc=dI.find(k=>!sv[k]);pdlast=-1;
+    bad(mm?(s.type==="prod"?"くり上がりの 数を たしかめよう。いくつ くり上がる かな？":"くり下がりの 数を たしかめよう。1 かしたら、いくつに なる かな？"):"");
+   }
+  }
+  return;
+ }
+ if(entry.length>=s.ans.length)return;
+ entry+=val;renderBoard();
+ if(entry.length===s.ans.length){
+  if(entry===s.ans)right();
+  else if(s.type==="q"){
+   const q=+entry,pr=q*s.N,df=s.cur-pr;trial={q,pr,df};entry="";
+   bad(df<0?`${s.N} × ${q} = ${pr} は ${s.cur} より 大きくて ひけないよ。商を もっと 小さく しよう。`
+    :`${s.cur} − ${pr} = ${df} は、わる数 ${s.N} 以上 だね。まだ われるから、商を もっと 大きく しよう。`);
+  }else{entry="";bad()}
+ }
+}
+
+// 不正解：？とぽよよん音、ヒントを出して読み上げる
+function bad(msg){
+ const s=pl.S[si];hintOn=true;miss++;curHint=msg||"";
+ boing();pop("？","#f2a33a");
+ renderBoard();updBubble();
+ say(msg||s.hint);
+}
+
+// 正解：⭐とピンポン音のあと、次のステップへ
+function right(){
+ busy=true;ding();pop("⭐");
+ setTimeout(()=>{
+  busy=false;keepMinis();si++;entry="";hintOn=false;
+  if(si>=pl.S.length)finish();else render();
+ },700);
+}
+
+// 1問とけたとき：「できた！」カードを出し、まちがいが2回以内なら合格の問題として記録する
+function finish(){
+ chips();renderBoard();updBubble();closeMul();
+ let btns;
+ if(rd.free)btns=[{t:"おなじ もんだい",f:()=>{rd.i=0;loadProb()}},{t:"べつの 数で",f:openFree},{t:"メニュー",f:openMenu}];
+ else{rd.res.push(miss<=2);dots();btns=[{t:rd.i>=rd.ps.length-1?"けっかを みる":"つぎの もんだい ▶",f:nextP}]}
+ showDone("⭕ "+pl.lab+"は "+pl.qs,btns);
+ showYay(btns);
+}
+
+/* ---------- ドラッグ ---------- */
+
+// 指(マウス)でつまんで運ぶ処理。10px以上動いたらドラッグ、それより少なければタップとして扱う
+function beginDrag(e,kind,val,label,tap){
+ if(drag||busy||demoOn||!pl)return;
+ drag={kind,val,label:label==="."?"・":label,tap,id:e.pointerId,sx:e.clientX,sy:e.clientY,moved:false,f:null};
+ addEventListener("pointermove",mv);addEventListener("pointerup",up);addEventListener("pointercancel",up);
+}
+function over(x,y){
+ if(!ghostEl)return false;
+ const r=ghostEl.getBoundingClientRect(),m=28;
+ return x>r.left-m&&x<r.right+m&&y>r.top-m&&y<r.bottom+m;
+}
+function mv(e){
+ const d=drag;if(!d||e.pointerId!==d.id)return;
+ if(!d.moved&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)>10){
+  d.moved=true;const f=document.createElement("div");
+  f.className="floater";f.textContent=d.label;document.body.appendChild(f);d.f=f;
+ }
+ if(d.moved){
+  d.f.style.left=e.clientX+"px";d.f.style.top=e.clientY+"px";
+  if(ghostEl)ghostEl.classList.toggle("hot",over(e.clientX,e.clientY));
+ }
+}
+function up(e){
+ const d=drag;if(!d||e.pointerId!==d.id)return;
+ removeEventListener("pointermove",mv);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);
+ drag=null;
+ if(!d.moved){if(d.tap&&e.type==="pointerup")submit(d.kind,d.val);return}
+ suppress=true;setTimeout(()=>{suppress=false},0);
+ d.f.remove();if(ghostEl)ghostEl.classList.remove("hot");
+ if(e.type!=="pointerup")return;
+ if(over(e.clientX,e.clientY))submit(d.kind,d.val);
+ else note("□ の ところで ゆびを はなそう");
+}
+
+/* ---------- ふりがな ---------- */
+
+// ふりがなの辞書。画面に出る漢字に自動でルビをつける。
+// 「位」は数字のあとなら「い」、それ以外は「くらい」のように、前後の文字で読みを変えるものもある。
+const RB=[["小数第","しょうすうだい"],["四捨五入","ししゃごにゅう"],["小数点","しょうすうてん"],["管理者","かんりしゃ"],["数字","すうじ"],["整数","せいすう"],["小数","しょうすう"],
+ ["以上","いじょう"],["以下","いか"],["右上","みぎうえ"],["矢印","やじるし"],["問題","もんだい"],["合格","ごうかく"],["選択","せんたく"],["手順","てじゅん"],["画面","がめん"],
+ ["算","ざん"],["位",(t,i)=>/[0-9０-９○]/.test(t[i-1]||"")?"い":"くらい"],["上",(t,i)=>/[がげ]/.test(t[i+1]||"")?"あ":"うえ"],["下",(t,i)=>/[がげ]/.test(t[i+1]||"")?"さ":"した"],
+ ["切","き"],["捨","す"],["答","こた"],["用","よう"],["消","け"],["全","ぜん"],["同","おな"],["大","おお"],["小","ちい"],["右","みぎ"],["左","ひだり"],["商","しょう"],["一","いち"],["数",(t,i)=>t.slice(Math.max(0,i-2),i)==="がい"?"すう":"かず"],["音","おと"],["読","よ"],["進","すす"],["方","かた"],["次回","じかい"],["表示","ひょうじ"],["積","せき"],["十","じゅう"],["百","ひゃく"],["千","せん"]];
+const KJ=/[一-鿿々]/;
+function rubyFrag(t){
+ const fr=document.createDocumentFragment();let buf="",i=0;
+ const flush=()=>{if(buf){fr.appendChild(document.createTextNode(buf));buf=""}};
+ while(i<t.length){
+  if(!KJ.test(t[i])){buf+=t[i++];continue}
+  const r=RB.find(([k])=>t.startsWith(k,i));
+  if(!r){buf+=t[i++];continue}
+  flush();const rt=typeof r[1]==="function"?r[1](t,i):r[1];
+  const rb=document.createElement("ruby");rb.append(r[0]);const x=document.createElement("rt");x.textContent=rt;rb.appendChild(x);fr.appendChild(rb);
+  i+=r[0].length;
+ }
+ flush();return fr;
+}
+
+// ページ内の文字をさがして、ルビのない漢字にルビをつける(SVGの盤面や選択肢は対象外)
+// 画面が書きかわるたびに自動で動く(MutationObserver)
+function rubyAll(){
+ const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,{acceptNode:n=>{
+  if(!KJ.test(n.nodeValue))return NodeFilter.FILTER_REJECT;
+  for(let e=n.parentElement;e;e=e.parentElement){const tg=e.tagName;if(tg==="RUBY"||tg==="RT"||tg==="SCRIPT"||tg==="STYLE"||tg==="OPTION"||tg==="SELECT"||e instanceof SVGElement)return NodeFilter.FILTER_REJECT}
+  return NodeFilter.FILTER_ACCEPT}});
+ const ns=[];while(w.nextNode())ns.push(w.currentNode);
+ ns.forEach(n=>n.replaceWith(rubyFrag(n.nodeValue)));
+}
+let rbq=false;
+new MutationObserver(()=>{if(rbq)return;rbq=true;requestAnimationFrame(()=>{rbq=false;rubyAll()})}).observe(document.body,{childList:true,subtree:true,characterData:true});
+
+/* ---------- 先生用：タイトルを 3びょう 長おしで 管理者ページ ---------- */
+(()=>{
+ const t=document.querySelector("header h1");let tm=null;
+ const stop=()=>{clearTimeout(tm);tm=null};
+ t.addEventListener("pointerdown",()=>{stop();tm=setTimeout(()=>{tm=null;if(navigator.vibrate)navigator.vibrate(60);show("admin")},3000)});
+ ["pointerup","pointerleave","pointercancel"].forEach(ev=>t.addEventListener(ev,stop));
+ t.addEventListener("contextmenu",e=>e.preventDefault());
+})();
+
+/* ---------- やり方 ポップアップ ---------- */
+
+// やり方ポップアップ。開いている間は、うしろの画面の読み上げを止める
+let demoPopup=false;
+function noDemoList(){try{return JSON.parse(localStorage.getItem("hissan.nodemo")||"[]")}catch(e){return[]}}
+function setNoDemo(on){const n=+$("demopop").dataset.lv;let a=noDemoList().filter(x=>x!==n);if(on)a.push(n);try{localStorage.setItem("hissan.nodemo",JSON.stringify(a))}catch(e){}}
+
+// じゆうれんしゅうのとき、入れた問題の種類に近いレベルの「やり方」を選ぶ
+function curDemoLv(){
+ if(lv>=0)return lv;if(!P)return 0;
+ if(P.op==="add"||P.op==="sub"){const base=LV.findIndex(l=>l.grp===P.op),da=P.a.includes("."),db=P.b.includes("."),L=Math.max(P.a.length,P.b.length);
+  let v;if(da||db)v=(da&&db&&P.a.split(".")[1].length===P.b.split(".")[1].length)?3:4;else v=L<=2?0:L===3?(P.op==="sub"&&/^\d0\d$/.test(P.a)?2:1):(P.op==="sub"?3:2);
+  return base+v}
+ if(P.op==="mul"){const base=LV.findIndex(l=>l.grp==="mul"),da=P.a.includes("."),db=P.b.includes(".");
+  const v=da&&db?5:(da||db)?4:parseFloat(P.b)>=10?(parseFloat(P.a)>=100?3:2):(parseFloat(P.a)>=100?1:0);return base+v}
+ const md=P.mode;if(md==="rem")return 1;if(md==="remI")return 8;if(md==="round")return P.sig?10:9;
+ if(P.b.includes("."))return P.a.includes(".")?5:6;if(P.a.includes("."))return 3;return parseFloat(P.b)>=10?2:0;
+}
+function openDemo(n){
+ if(window.DEMO_ONLY!=null)return;
+ demoPopup=true;if(window.speechSynthesis)speechSynthesis.cancel();
+ const d=$("demopop");d.dataset.lv=n;
+ $("dptitle").textContent=`🎬 やり方：${lvTitle(n)}`;
+ $("dpno").checked=noDemoList().includes(n);
+ $("dpframe").srcdoc=SRC_HTML.replace("<head>","<head><script>window.DEMO_ONLY="+n+"<\/script>");
+ d.style.display="flex";
+}
+function closeDemo(){
+ const d=$("demopop");if(d.style.display!=="flex")return;
+ d.style.display="none";$("dpframe").srcdoc="";demoPopup=false;
+ if(window.speechSynthesis)speechSynthesis.cancel();
+ if(pl&&pl.S[si]&&$("menu").style.display!=="block")say((pl.S[si].pre||"")+pl.S[si].msg);
+}
+addEventListener("message",e=>{if(e.data&&e.data.type==="hissanDemoDone")closeDemo()});
+
+/* ---------- はじめ ---------- */
+[..."1234567890.⌫"].forEach(v=>{
+ const b=document.createElement("button");b.className="card"+(v==="⌫"?" bk":"");b.textContent=v==="."?"・":v;
+ if(v!=="⌫")b.addEventListener("pointerdown",e=>{if(mp&&mp.act<mp.cells.length)return;beginDrag(e,"card",v,v)});
+ b.addEventListener("click",()=>{
+  if(mp&&mp.act<mp.cells.length&&v!=="⌫"){mulInput(v);return}
+  if(!suppress)submit("card",v);
+ });
+ $("cards").appendChild(b);
+});
+if(window.DEMO_ONLY!=null){document.body.classList.add("demoonly");rubyAll();runDemo(window.DEMO_ONLY)}
+else{openHome();rubyAll();}
+</script>
+</body>
+</html>
