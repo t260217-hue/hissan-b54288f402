@@ -129,12 +129,14 @@ ruby{ruby-position:over}
 rt{font-size:.46em;font-weight:700;letter-spacing:-.02em;opacity:.85}
 #bubble,#bhint,#lvbar,.ov,#done,#yay{line-height:2}
 .ib.wide{width:auto;padding:0 14px;border-radius:21px;font-size:15px;font-weight:800;color:var(--pri)}
-#demopop{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:rgba(30,58,47,.35);padding:12px}
-#dpbox{width:min(1100px,96vw);height:min(760px,92vh);background:var(--card);border-radius:22px;box-shadow:0 18px 50px rgba(30,58,47,.3);display:flex;flex-direction:column;overflow:hidden;animation:yin .3s ease-out}
-#dphead{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--pri);color:#fff;font-size:17px}
+/* やり方の窓：本物の盤面と まちがえないよう、小さく(実際の画面を ちぢめて)、オレンジの わくで 浮かせて出す */
+#demopop{position:fixed;inset:0;z-index:90;display:none;align-items:flex-start;justify-content:center;background:rgba(30,58,47,.18);padding:70px 12px 12px}
+#dpbox{position:relative;background:var(--card);border:4px solid var(--acc);border-radius:22px;box-shadow:0 18px 50px rgba(30,58,47,.3);display:flex;flex-direction:column;overflow:hidden;animation:yin .3s ease-out}
+#dphead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px 6px 14px;background:var(--acc);color:#fff;font-size:15px;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}
 #dphead button{border:0;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.25);color:#fff;font-size:16px}
-#dpframe{flex:1;border:0;width:100%;background:var(--bg)}
-#dpfoot{display:flex;align-items:center;justify-content:flex-end;gap:16px;padding:10px 16px;border-top:1px solid var(--line);font-weight:700;font-size:15px}
+#dpwrap{position:relative;overflow:hidden;width:calc(1000px*var(--sc,.55));height:calc(680px*var(--sc,.55));background:var(--bg)}
+#dpframe{position:absolute;left:0;top:0;border:0;width:1000px;height:680px;transform:scale(var(--sc,.55));transform-origin:0 0;background:var(--bg)}
+#dpfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-top:1px solid var(--line);font-weight:700;font-size:15px}
 #dpfoot input{width:22px;height:22px;vertical-align:middle;accent-color:var(--pri)}
 #dpskip{border:0;border-radius:30px;padding:10px 22px;background:var(--pri);color:#fff;font-size:17px;font-weight:800;box-shadow:0 3px 0 var(--pri3)}
 body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly #cards,body.demoonly #done,body.demoonly #skipBtn{display:none!important}
@@ -151,6 +153,27 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
 .hb .hi{display:flex;align-items:center;justify-content:center;width:clamp(64px,12vw,84px);height:clamp(64px,12vw,84px);border-radius:50%;font-size:clamp(38px,7vw,52px);color:#fff;background:var(--pri)}
 .hb.add .hi{background:#2fb37a}.hb.sub .hi{background:#27a38f}.hb.mul .hi{background:#1e8e62}.hb.div .hi{background:#177a55}
 #gtabs button{flex:0 0 auto;max-width:none;padding:10px 18px;color:var(--pri)}
+/* 数字パッド：うかせる(テンキー型・指で動かせる)／下に一列 の2つの形。どちらでもカードのドラッグ＆ドロップはそのまま使える */
+#padbar{display:none}
+body.padfloat #pad{position:fixed;z-index:44;left:var(--px,auto);top:var(--py,auto);right:var(--pr,16px);bottom:var(--pb,16px);width:min(290px,78vw);background:var(--card);border-radius:20px;box-shadow:0 12px 30px rgba(30,58,47,.22);overflow:hidden}
+body.padfloat #pad:has(#cards[style*="none"]){display:none}
+body.padfloat #padbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 12px;background:var(--pri);color:#fff;font-size:15px;cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}
+#padbar button{border:0;border-radius:14px;padding:5px 10px;background:rgba(255,255,255,.25);color:#fff;font-size:13px;font-weight:700}
+body.padfloat #cards:not([style*="none"]){display:grid!important;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;box-shadow:none}
+body.padfloat .card{max-width:none;height:clamp(52px,8vh,64px)}
+body.padfloat .card[data-v="."]{order:10}body.padfloat .card[data-v="0"]{order:11}body.padfloat .card[data-v="⌫"]{order:12}
+#padrow{display:none}
+body:not(.padfloat) #cards::after{content:"";display:none}
+#padup{flex:0 0 auto;border:0;border-radius:14px;background:var(--pri2);color:var(--pri);font-size:13px;font-weight:800;padding:0 10px}
+body.padfloat #padup{display:none}
+body.demoonly #pad{display:none!important}
+#hsum{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:6px}
+.hs{background:var(--card);border-radius:16px;box-shadow:var(--sh);padding:10px 12px;font-weight:700;line-height:1.6;font-size:14px}
+.hs b{display:block;font-size:18px;color:var(--pri)}
+#htab{border-collapse:collapse;width:100%;background:var(--card);border-radius:12px;font-size:14px}
+#htab th,#htab td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+#htab th{background:var(--pri2);color:var(--pri);position:sticky;top:0}
+#htab td.ng{color:#c77a12;font-weight:800}#htab td.okc{color:var(--pri);font-weight:800}
 </style>
 </head>
 <body>
@@ -186,7 +209,10 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
   <div id="board"><div id="expr"></div><svg id="svg" preserveAspectRatio="xMidYMid meet"></svg></div>
 </div>
 <!-- 数字カード(1〜9,0,小数点,けす)。タップでも、□へドラッグでも入力できる。中身はscriptで作る -->
-<div id="cards"></div>
+<div id="pad">
+  <div id="padbar"><b>✥ すうじ</b><button id="padmode" onclick="togglePad()">下に もどす</button></div>
+  <div id="cards"></div>
+</div>
 <!-- 1問おわったとき・10問おわったときに、数字カードの代わりに出る結果と次へボタン -->
 <div id="done"><span id="dmsg"></span><span id="dbtn"></span></div>
 <!-- 正解の⭐・不正解の？を右上に一瞬だけ出す場所 -->
@@ -194,7 +220,7 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
 <!-- ===== やり方ポップアップ：このページ自身をiframeの中に読み込み、自動で解いて見せる。「次回からは表示しない」はレベルごとに保存 ===== -->
 <div id="demopop"><div id="dpbox">
   <div id="dphead"><b id="dptitle"></b><button onclick="closeDemo()" aria-label="とじる">✕</button></div>
-  <iframe id="dpframe" title="やり方"></iframe>
+  <div id="dpwrap"><iframe id="dpframe" title="やり方"></iframe></div>
   <div id="dpfoot"><label><input type="checkbox" id="dpno" onchange="setNoDemo(this.checked)"> 次回からは 表示しない</label><button id="dpskip" onclick="closeDemo()">スキップ ▶</button></div>
 </div></div>
 
@@ -220,6 +246,7 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
       <button class="hb mul" onclick="setGroup('mul')"><span class="hi">×</span><span>かけ算</span></button>
       <button class="hb div" onclick="setGroup('div')"><span class="hi">÷</span><span>わり算</span></button>
     </div>
+    <div class="mrow" style="justify-content:center;margin-top:22px"><button onclick="openHist()">📒 きろくを みる</button></div>
   </div>
 </div>
 <!-- メニュー：えらんだ計算のレベルのカード(前のレベルに合格すると次がひらく) -->
@@ -243,6 +270,23 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
   <div class="mrow"><button class="go" onclick="startFree()">はじめる</button><button onclick="openMenu()">もどる</button></div>
 </div>
 <!-- 管理者ページ(先生用・テスト用)：全レベルをひらく／進み具合を消す。メニューからは見えない -->
+<!-- なまえの とうろく：さいしょに 1回だけ。きろく(履歴)に つける なまえ。外には 送らない -->
+<div id="nameov" class="ov">
+  <div id="hwrap2" style="max-width:520px;margin:12vh auto 0;text-align:center">
+    <h2>なまえを いれてね</h2>
+    <p style="color:var(--sub);font-weight:700">きろくに つかうよ。(ばんごうでも いいよ)</p>
+    <input id="nmin" maxlength="20" onkeydown="if(event.key==='Enter')saveName()" placeholder="れい：やまだ はなこ / 12" style="width:100%">
+    <div class="mrow" style="justify-content:center"><button class="go" onclick="saveName()">けってい</button></div>
+  </div>
+</div>
+<!-- きろく(履歴)：この端末に 保存した 1問ごとの きろく。CSV で 書き出して 先生が あつめられる -->
+<div id="hist" class="ov">
+  <h2 id="htl">📒 きろく</h2>
+  <div id="hsum"></div>
+  <div class="mrow"><button onclick="histCSV()">⬇ CSVで 書き出す</button><button onclick="histCopy()">📋 コピー</button><button onclick="askName()">✏️ なまえを かえる</button><button onclick="openHome()">🏠 トップへ</button></div>
+  <p id="hmsg" style="font-weight:800;color:var(--pri);min-height:1.4em"></p>
+  <div style="overflow:auto"><table id="htab"></table></div>
+</div>
 <div id="admin" class="ov">
   <h2>🛠 管理者ページ (テスト用・かぎなし)</h2>
   <p>全レベルを ひらいたり、しんちょくを 消したり できます。子どもの たんまつで つかったあとは「しんちょくを リセット」で もとに もどしてください。</p>
@@ -251,6 +295,7 @@ body.demoonly header,body.demoonly #lvbar,body.demoonly #adminbar,body.demoonly 
     <button onclick="adminReset()">しんちょくを リセット</button>
     <button onclick="openHome()">🏠 トップへ</button>
   </div>
+  <div class="mrow"><button onclick="openHist()">📒 きろくを みる</button><button onclick="histClear()">🗑 きろくを ぜんぶ 消す</button></div>
   <p id="admmsg" style="font-size:20px;font-weight:800;color:var(--pri);min-height:1.5em"></p>
   <p id="adstat"></p>
 </div>
@@ -554,8 +599,8 @@ function planDiv(P){
  const sa=dg.slice(0,Math.min(dp,n0)).join("")+(dp<n0?"."+dg.slice(dp,n0).join(""):"");
 
  const S=[],push=o=>S.push(o);
- push({type:"place",which:"b",ans:P.b,chip:"じゅんび",pre:`${P.a} ÷ ${P.b} を ひっさんで とこう。`,msg:`わる数 ${P.b} を ひだりの □ に いれよう`,hint:"÷ の うしろの 数が わる数 だよ。"});
- push({type:"place",which:"a",ans:P.a,chip:"じゅんび",msg:`わられる数 ${P.a} を □ に いれよう`,hint:"÷ の まえの 数が わられる数 だよ。"});
+ push({type:"place",which:"a",ans:P.a,chip:"じゅんび",pre:`${P.a} ÷ ${P.b} を ひっさんで とこう。`,msg:`まず わられる数 ${P.a} を わくの 中の □ に いれよう`,hint:"÷ の まえの 数が わられる数 だよ。"});
+ push({type:"place",which:"b",ans:P.b,chip:"じゅんび",msg:`つぎに わる数 ${P.b} を ひだりの □ に いれよう`,hint:"÷ の うしろの 数が わる数 だよ。"});
  if(kb){
   push({type:"choice",sub:"shift",opts:["1けた","2けた","3けた"],ans:kb+"けた",row:0,chip:"じゅんび",msg:`わる数 ${P.b} を 整数に するには、小数点を 右へ なんけた うつす？ えらぼう。`,hint:`${P.b} の 小数点より 右に ある 数字の 数を かぞえよう。`});
  }
@@ -727,7 +772,8 @@ function openMenu(){
 }
 function setGroup(g){menuG=g;openMenu()}
 // トップページ(4つの計算をえらぶ)を開く
-function openHome(){demoTok++;demoOn=false;busy=false;hideYay();closeMul();if(window.speechSynthesis)speechSynthesis.cancel();show("home")}
+function openHome(){demoTok++;demoOn=false;busy=false;hideYay();closeMul();if(window.speechSynthesis)speechSynthesis.cancel();
+ const nm=getName();$("hsub").textContent=(nm?nm+"さん、":"")+"どの けいさんを れんしゅうする？";show("home")}
 
 // じゆうれんしゅう画面：わり算/かけ算の切りかえで、ラベルや「こたえかた」の表示を変える
 function freeOp(){const o=$("fop").value,d=o==="div";
@@ -765,7 +811,7 @@ function buildExpr(){
 // 問題を1つ読みこみ、手順の最初から始める
 function loadProb(){
  hideYay();closeMul();
- P=rd.ps[rd.i];pl=plan(P);si=0;entry="";busy=false;hintOn=false;miss=0;demoOn=false;
+ P=rd.ps[rd.i];pl=plan(P);si=0;entry="";busy=false;hintOn=false;miss=0;demoOn=false;pl.t0=Date.now();pl.err={};
  $("done").style.display="none";$("cards").style.display="flex";
  $("lvname").textContent=rd.free?"✏️ じゆうれんしゅう":`${lvTitle(lv)}　${rd.i+1}/10`;dots();
  $("adbg").textContent=adminOn?`  ${P.a} ÷ ${P.b} ${P.mode||""}`:"";
@@ -1087,7 +1133,12 @@ $("svg").addEventListener("pointerdown",e=>{
  if(e.target.id==="hit"){const s=pl.S[si];beginDrag(e,"card",s.ans,s.ans,true)}
  else if(e.target.dataset&&e.target.dataset.st!==undefined&&!busy&&!demoOn){stv[+e.target.dataset.st]=1;renderBoard();if(pl.S[si].tg.every((_,k)=>stv[k]))right()}
  else if(e.target.dataset&&e.target.dataset.dh!==undefined&&!busy&&!demoOn){const j=+e.target.dataset.dh,d=String(pl.dg[pl.dp+j]);foc=j;beginDrag(e,"card",d,d,true)}
- else if(e.target.dataset&&e.target.dataset.s!==undefined&&!busy&&!demoOn){foc=+e.target.dataset.s;renderBoard()}
+ else if(e.target.dataset&&e.target.dataset.s!==undefined&&!busy&&!demoOn){
+  // 数字が入っている□(○)は、その数字を つまんで ほかの□へ うごかせる(□の外で はなすと けせる)。タップなら その□を えらぶ
+  const k=+e.target.dataset.s;
+  if(sv[k]){beginDrag(e,"move",sv[k],sv[k]);if(drag)drag.from=k}
+  else{foc=k;renderBoard()}
+ }
 });
 
 /* ---------- 左の吹き出し ---------- */
@@ -1246,6 +1297,7 @@ function submit(kind,val){
 // 不正解：？とぽよよん音、ヒントを出して読み上げる
 function bad(msg){
  const s=pl.S[si];hintOn=true;miss++;curHint=msg||"";
+ if(s&&pl.err&&!demoOn){const n=stepName(s);pl.err[n]=(pl.err[n]||0)+1}
  boing();pop("？","#f2a33a");
  renderBoard();updBubble();
  say(msg||s.hint);
@@ -1263,6 +1315,7 @@ function right(){
 // 1問とけたとき：「できた！」カードを出し、まちがいが2回以内なら合格の問題として記録する
 function finish(){
  chips();renderBoard();updBubble();closeMul();
+ histRecord();
  let btns;
  if(rd.free)btns=[{t:"おなじ もんだい",f:()=>{rd.i=0;loadProb()}},{t:"べつの 数で",f:openFree},{t:"メニュー",f:openMenu}];
  else{rd.res.push(miss<=2);dots();btns=[{t:rd.i>=rd.ps.length-1?"けっかを みる":"つぎの もんだい ▶",f:nextP}]}
@@ -1298,10 +1351,19 @@ function up(e){
  const d=drag;if(!d||e.pointerId!==d.id)return;
  removeEventListener("pointermove",mv);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);
  drag=null;
- if(!d.moved){if(d.tap&&e.type==="pointerup")submit(d.kind,d.val);return}
+ if(!d.moved){if(d.kind==="move"){if(e.type==="pointerup"){foc=d.from;renderBoard()}return}if(d.tap&&e.type==="pointerup")submit(d.kind,d.val);return}
  suppress=true;setTimeout(()=>{suppress=false},0);
  d.f.remove();if(ghostEl)ghostEl.classList.remove("hot");
  if(e.type!=="pointerup")return;
+ // 入れた数字を うごかしたとき：ほかの□(○)の上なら そこへ うつす／□の外なら けす
+ if(d.kind==="move"){
+  const hit=document.elementsFromPoint(e.clientX,e.clientY).find(x=>x.dataset&&x.dataset.s!==undefined);
+  if(hit&&+hit.dataset.s===d.from){renderBoard();return}
+  sv[d.from]="";pdlast=-1;
+  if(hit){foc=+hit.dataset.s;sv[foc]="";submit("card",d.val)}
+  else{foc=d.from;renderBoard();note("数字を けしたよ。")}
+  return;
+ }
  // 1けたずつの□や小さい○の上で はなしたら、その□(○)に入れる(いま光っていない□でもOK)
  const hitS=d.kind==="card"&&document.elementsFromPoint(e.clientX,e.clientY).find(x=>x.dataset&&x.dataset.s!==undefined);
  if(hitS){foc=+hitS.dataset.s;submit(d.kind,d.val)}
@@ -1384,6 +1446,7 @@ function openDemo(n){
  const d=$("demopop");d.dataset.lv=n;
  $("dptitle").textContent=`🎬 やり方：${lvTitle(n)}`;
  $("dpno").checked=noDemoList().includes(n);
+ {const sc=Math.max(.3,Math.min(.6,(innerWidth-40)/1000,(innerHeight-200)/680));$("dpbox").style.setProperty("--sc",sc);$("dpbox").style.transform=""}
  $("dpframe").srcdoc=SRC_HTML.replace("<head>","<head><script>window.DEMO_ONLY="+n+"<\/script>");
  d.style.display="flex";
 }
@@ -1395,9 +1458,118 @@ function closeDemo(){
 }
 addEventListener("message",e=>{if(e.data&&e.data.type==="hissanDemoDone")closeDemo()});
 
+/* ---------- 数字パッド：うかせる／下に もどす、と 指で うごかす ---------- */
+// うかせた形では 3×4 のテンキー(1 2 3 ／ 4 5 6 ／ 7 8 9 ／ ・ 0 ⌫)。上の 緑の 帯を つまんで すきな 場所へ 動かせる。
+// 形と 場所は この 端末に おぼえておく。
+function padSave(){try{const d=document.body.dataset;localStorage.setItem("hissan.pad",JSON.stringify({f:document.body.classList.contains("padfloat"),x:d.px,y:d.py}))}catch(e){}}
+function padPlace(x,y){
+ const pad=$("pad"),w=pad.offsetWidth||290,h=pad.offsetHeight||300;
+ x=Math.min(Math.max(x,0),innerWidth-w);y=Math.min(Math.max(y,0),innerHeight-h);
+ const st=document.body.style;st.setProperty("--px",x+"px");st.setProperty("--py",y+"px");st.setProperty("--pr","auto");st.setProperty("--pb","auto");
+ document.body.dataset.px=x;document.body.dataset.py=y;
+}
+function togglePad(){
+ const on=!document.body.classList.contains("padfloat");
+ document.body.classList.toggle("padfloat",on);
+ $("padmode").textContent="下に もどす";padSave();
+}
+(()=>{
+ const up=document.createElement("button");up.id="padup";up.textContent="⇱ うかせる";up.onclick=togglePad;setTimeout(()=>$("cards").appendChild(up));
+ let pf={f:true};try{pf=JSON.parse(localStorage.getItem("hissan.pad")||'{"f":true}')}catch(e){}
+ document.body.classList.toggle("padfloat",pf.f!==false);
+ if(pf.x!=null)requestAnimationFrame(()=>padPlace(+pf.x,+pf.y));
+ const bar=$("padbar");let m=null;
+ bar.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;const r=$("pad").getBoundingClientRect();m={id:e.pointerId,dx:e.clientX-r.left,dy:e.clientY-r.top};bar.setPointerCapture(e.pointerId);e.preventDefault()});
+ bar.addEventListener("pointermove",e=>{if(m&&e.pointerId===m.id)padPlace(e.clientX-m.dx,e.clientY-m.dy)});
+ const end=e=>{if(m&&e.pointerId===m.id){m=null;padSave()}};
+ bar.addEventListener("pointerup",end);bar.addEventListener("pointercancel",end);
+ addEventListener("resize",()=>{const d=document.body.dataset;if(d.px!=null)padPlace(+d.px,+d.py)});
+})();
+
+// やり方の窓も、オレンジの帯を つまんで 動かせる
+(()=>{
+ const box=$("dpbox"),bar=$("dphead");let m=null,ox=0,oy=0;
+ bar.addEventListener("pointerdown",e=>{if(e.target.closest("button"))return;const t=new DOMMatrix(getComputedStyle(box).transform);m={id:e.pointerId,sx:e.clientX-t.m41,sy:e.clientY-t.m42};bar.setPointerCapture(e.pointerId);e.preventDefault()});
+ bar.addEventListener("pointermove",e=>{if(m&&e.pointerId===m.id)box.style.transform=`translate(${e.clientX-m.sx}px,${e.clientY-m.sy}px)`});
+ const end=e=>{if(m&&e.pointerId===m.id)m=null};bar.addEventListener("pointerup",end);bar.addEventListener("pointercancel",end);
+})();
+
+/* ---------- きろく(個人の履歴) ---------- */
+// 1問とけるたびに、この端末の ブラウザに 1行ずつ 保存する(外へは 送らない)。最大3000件。
+// 先生は「きろくを みる」で 見るか、CSV で 書き出して あつめる。消すのは 管理者ページからだけ。
+const HKEY="hissan.hist",NKEY="hissan.name";
+function getName(){try{return localStorage.getItem(NKEY)||""}catch(e){return""}}
+function askName(){$("nmin").value=getName();show("nameov");setTimeout(()=>$("nmin").focus(),50)}
+function saveName(){const v=$("nmin").value.trim().slice(0,20);if(!v){$("nmin").focus();return}try{localStorage.setItem(NKEY,v)}catch(e){}openHome()}
+function histLoad(){try{return JSON.parse(localStorage.getItem(HKEY)||"[]")}catch(e){return[]}}
+function histSave(a){try{localStorage.setItem(HKEY,JSON.stringify(a.slice(-3000)))}catch(e){}}
+// まちがえた ステップの 名前(つまずいた 手順)
+function stepName(s){
+ if(s.type==="choice")return{can:"われる？われない？",mark:"×と0",shift:"小数点の いどう",cnt:"小数点の けた数"}[s.sub]||"えらぶ";
+ if(s.type==="asc")return s.op==="add"?"たす":"ひく";
+ return{place:"数を おく",q:"たてる",prod:"かける",mul:"かける",rem:"ひく",sum:"たす",drop:"おろす",ddec:"おろす",point:"小数点",mpt:"小数点",rpt:"小数点",zero:"0を かく",strike:"0を けす",fin:"あまり",round:"がい数"}[s.type]||s.chip||s.type;
+}
+const pad2=n=>String(n).padStart(2,"0");
+function probText(p){
+ const sym={mul:"×",add:"+",sub:"−"}[p.op]||"÷";
+ const md={rem:"(あまり)",remI:"(小数の あまり)"}[p.mode]||(p.mode==="round"?(p.sig?`(上から${p.sig}けた)`:`(小数第${p.d}位まで)`):"");
+ return `${p.a} ${sym} ${p.b}${md}`;
+}
+function histRecord(){
+ if(demoOn||window.DEMO_ONLY!=null||!pl||!pl.t0)return;
+ const d=new Date(),a=histLoad();
+ a.push({d:`${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
+  g:GN[P.op==="mul"?"mul":P.op==="add"?"add":P.op==="sub"?"sub":"div"],lv:rd.free?"じゆう":`レベル${LV[lv].k+1}`,
+  q:probText(P),ans:pl.qs,miss,ok:miss<=2,sec:Math.round((Date.now()-pl.t0)/1000),
+  err:Object.entries(pl.err).map(([k,v])=>`${k}×${v}`).join("、")});
+ histSave(a);pl.t0=0;
+}
+function openHist(){
+ const a=histLoad(),nm=getName();
+ $("htl").textContent=`📒 ${nm?nm+"さんの ":""}きろく（${a.length}もん）`;$("hmsg").textContent="";
+ const sum=$("hsum");sum.replaceChildren();
+ ["たし算","ひき算","かけ算","わり算"].forEach(g=>{
+  const r=a.filter(x=>x.g===g);if(!r.length)return;
+  const ok=r.filter(x=>x.ok).length,av=Math.round(r.reduce((t,x)=>t+x.sec,0)/r.length);
+  const ec={};r.forEach(x=>(x.err||"").split("、").filter(Boolean).forEach(e=>{const[k,v]=e.split("×");ec[k]=(ec[k]||0)+(+v||1)}));
+  const top=Object.entries(ec).sort((p,q)=>q[1]-p[1]).slice(0,2).map(e=>e[0]).join("・");
+  const c=document.createElement("div");c.className="hs";
+  c.innerHTML=`<b></b><span></span>`;c.querySelector("b").textContent=g;
+  c.querySelector("span").textContent=`${r.length}もん／よく できた ${Math.round(ok/r.length*100)}%／へいきん ${av}びょう`+(top?`／まちがいが おおい：${top}`:"");
+  sum.appendChild(c);
+ });
+ const t=$("htab");t.replaceChildren();
+ const hr=t.insertRow();["日時","けいさん","レベル","もんだい","こたえ","まちがい","じかん","つまずいた ところ"].forEach(h=>{const th=document.createElement("th");th.textContent=h;hr.appendChild(th)});
+ a.slice(-200).reverse().forEach(x=>{const r=t.insertRow();[x.d,x.g,x.lv,x.q,x.ans,x.miss+"かい",x.sec+"びょう",x.err||"―"].forEach((v,i)=>{const td=r.insertCell();td.textContent=v;if(i===5)td.className=x.ok?"okc":"ng"})});
+ if(!a.length){const r=t.insertRow();r.insertCell().textContent="まだ きろくが ないよ。"}
+ show("hist");
+}
+function histCSVText(){
+ const nm=getName(),q=v=>`"${String(v).replace(/"/g,'""')}"`;
+ const rows=[["日時","なまえ","計算","レベル","問題","答え","まちがい回数","よくできた(2回以内)","かかった秒","つまずいた手順"]];
+ histLoad().forEach(x=>rows.push([x.d,nm,x.g,x.lv,x.q,x.ans,x.miss,x.ok?"○":"",x.sec,x.err||""]));
+ return rows.map(r=>r.map(q).join(",")).join("\r\n");
+}
+function histCSV(){
+ try{const b=new Blob(["﻿"+histCSVText()],{type:"text/csv"}),u=URL.createObjectURL(b),l=document.createElement("a");
+  const d=new Date();l.href=u;l.download=`hissan_kiroku_${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}.csv`;
+  document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);
+  $("hmsg").textContent="⬇ CSV ファイルを 書き出しました。(出てこない ときは「コピー」を つかってね)";
+ }catch(e){$("hmsg").textContent="書き出せませんでした。「コピー」を つかってね。"}
+}
+function histCopy(){
+ const t=histCSVText();
+ (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{$("hmsg").textContent="📋 コピーしました。表計算ソフトに はりつけられます。"})
+  .catch(()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");$("hmsg").textContent="📋 コピーしました。"}catch(e){$("hmsg").textContent="コピーできませんでした。"}ta.remove()});
+}
+function histClear(){
+ if(!confirm("この たんまつの きろくを ぜんぶ 消します。よろしいですか？"))return;
+ try{localStorage.removeItem(HKEY)}catch(e){}$("admmsg").textContent="🗑 きろくを ぜんぶ 消しました。";
+}
+
 /* ---------- はじめ ---------- */
 [..."1234567890.⌫"].forEach(v=>{
- const b=document.createElement("button");b.className="card"+(v==="⌫"?" bk":"");b.textContent=v==="."?"・":v;
+ const b=document.createElement("button");b.className="card"+(v==="⌫"?" bk":"");b.dataset.v=v;b.textContent=v==="."?"・":v;
  if(v!=="⌫")b.addEventListener("pointerdown",e=>{if(mp&&mp.act<mp.cells.length)return;beginDrag(e,"card",v,v)});
  b.addEventListener("click",()=>{
   if(mp&&mp.act<mp.cells.length&&v!=="⌫"){mulInput(v);return}
@@ -1406,7 +1578,7 @@ addEventListener("message",e=>{if(e.data&&e.data.type==="hissanDemoDone")closeDe
  $("cards").appendChild(b);
 });
 if(window.DEMO_ONLY!=null){document.body.classList.add("demoonly");rubyAll();runDemo(window.DEMO_ONLY)}
-else{openHome();rubyAll();}
+else{openHome();rubyAll();if(!getName())askName();}
 </script>
 </body>
 </html>
